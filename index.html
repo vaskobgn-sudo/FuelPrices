@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Горива и минимални заплати по държави</title>
+<meta name="description" content="Колко литра бензин и дизел се купуват с една минимална заплата — сравнение по държави, всичко в евро.">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛽</text></svg>">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <p class="eyebrow">Покупателна способност за гориво</p>
+    <h1>Колко гориво купува една минимална заплата</h1>
+    <p class="lede">
+      Минимални заплати и цени на бензин и дизел по държави, преизчислени в евро.
+      Последната колона показва колко литра се купуват с една месечна минимална заплата.
+    </p>
+    <p class="updated" id="updated" hidden></p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="stats" id="stats" aria-label="Обобщение" hidden></section>
+
+  <section class="panel" aria-labelledby="table-heading">
+    <div class="panel-head">
+      <h2 id="table-heading">Сравнение по държави</h2>
+
+      <div class="controls">
+        <div class="search">
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
+          </svg>
+          <input type="search" id="search" placeholder="Търсене на държава…"
+                 autocomplete="off" aria-label="Търсене на държава">
+        </div>
+
+        <div class="sort-control">
+          <label for="sort-select">Подреждане</label>
+          <div class="sort-inputs">
+            <select id="sort-select"></select>
+            <button type="button" id="sort-dir" class="dir-toggle"
+                    aria-label="Смяна на посоката на сортиране">
+              <span id="sort-dir-icon">↑</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="status" id="status">Зареждане на данните…</p>
+
+    <div class="table-scroll">
+      <table id="table" hidden>
+        <thead><tr id="head-row"></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+
+    <ul class="cards" id="cards"></ul>
+
+    <p class="empty" id="empty" hidden>Няма намерени държави за това търсене.</p>
+  </section>
+
+  <section class="notes">
+    <h2>За данните</h2>
+    <ul id="sources">
+      <li>Минималните заплати са преизчислени към <strong>месечна</strong> стойност и конвертирани в евро.</li>
+      <li>Цените на горивата са за <strong>литър</strong>, също в евро.</li>
+      <li>Валутните курсове идват от Frankfurter API (данни на Европейската централна банка).</li>
+      <li>Показват се само държави, за които има <em>и</em> минимална заплата, <em>и</em> цена на гориво.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Данните се обновяват автоматично всеки ден чрез GitHub Actions.</p>
+    <p class="fine" id="footer-sources"></p>
+  </div>
+</footer>
+
+<noscript>
+  <p class="wrap status">Тази страница се нуждае от JavaScript, за да зареди данните.</p>
+</noscript>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>
