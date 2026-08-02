@@ -185,6 +185,12 @@ def test_fuel_page() -> None:
     check("falls back to raw markup when ids change",
           len(fd.gpp_pairs(BeautifulSoup(stripped, "html.parser"), stripped, "gasoline")), 4)
 
+    # The live pages put no class on the price labels at all.
+    unclassed = PETROL_HTML.replace('class="pricenumbers"', 'class="barlabel"')
+    check("prices found without a class hook",
+          fd.gpp_pairs(BeautifulSoup(unclassed, "html.parser"), unclassed, "gasoline")[:2],
+          [("Bulgaria", 1.379), ("Germany", 1.85)])
+
     gallons = PETROL_HTML.replace("litre", "gallon")
     check("gallon pages are converted",
           fd.gpp_unit(BeautifulSoup(gallons, "html.parser")),

@@ -644,16 +644,20 @@ def gpp_pairs(soup: BeautifulSoup, html: str, fuel: str) -> list[tuple[str, floa
     """
     countries = [a.get_text(" ", strip=True)
                  for a in soup.select("#outsideLinks a")]
-    prices = [parse_number(node.get_text())
-              for node in soup.select(".pricenumbers")]
-
     if not countries:
         # Same idea, straight off the markup, in case the ids change.
         countries = [m.group(1) for m in re.finditer(
             rf'href="/([^"/]+)/{fuel}_prices/"', html, re.IGNORECASE)]
+
+    prices = [parse_number(node.get_text())
+              for node in soup.select(".pricenumbers")]
     if not prices:
-        prices = [parse_number(m.group(1)) for m in re.finditer(
-            r'class="pricenumbers"[^>]*>\s*([\d.,]+)', html)]
+        # The bar labels carry no stable class name, so take every standalone
+        # price-shaped number inside the chart, in document order.
+        chart = soup.find(id="graphic") or soup
+        prices = [float(text.replace(",", "."))
+                  for text in chart.stripped_strings
+                  if re.fullmatch(r"\d{1,2}[.,]\d{2,3}", text)]
 
     if countries and prices and len(countries) == len(prices):
         return [(c, p) for c, p in zip(countries, prices) if p is not None]
@@ -679,6 +683,12 @@ def gpp_pairs(soup: BeautifulSoup, html: str, fuel: str) -> list[tuple[str, floa
     log.error("  first prices: %s", ", ".join(str(p) for p in prices[:5]) or "none")
     log.error("  element ids seen: %s", ", ".join(sorted({
         str(tag.get("id")) for tag in soup.find_all(id=True)})[:40]) or "none")
+    log.error("  classes seen: %s", ", ".join(sorted({
+        cls for tag in soup.find_all(class_=True)
+        for cls in tag.get("class", [])})[:40]) or "none")
+    chart = soup.find(id="graphic")
+    if chart is not None:
+        log.error("  chart markup: %s", str(chart)[:1500].replace("\n", " "))
     return []
 
 
