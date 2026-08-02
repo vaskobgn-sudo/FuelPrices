@@ -36,7 +36,14 @@ FUEL_URLS = (
     "https://en.wikipedia.org/wiki/Gasoline_and_diesel_usage_and_pricing",
 )
 WIKI_API = "https://en.wikipedia.org/w/api.php"
-FUEL_SEARCH = "list of countries by gasoline and diesel prices"
+# Several angles on the same question; `insource:` matches the wikitext of the
+# table itself, which survives the article being renamed or split.
+FUEL_SEARCHES = (
+    'insource:"Gasoline prices" insource:"Diesel prices"',
+    'insource:/Gasoline.{0,20}Diesel/ litre price country',
+    "list of countries by gasoline and diesel prices",
+    "fuel prices by country",
+)
 
 FRANKFURTER_URLS = (
     "https://api.frankfurter.dev/v1/latest?base=EUR",
@@ -81,6 +88,16 @@ def http_get(url: str, *, retries: int = 4, timeout: int = 45) -> requests.Respo
             )
             response.raise_for_status()
             return response
+        except requests.HTTPError as exc:
+            # A missing or forbidden page will not appear on a retry.
+            status = exc.response.status_code if exc.response is not None else 0
+            if 400 <= status < 500 and status not in (408, 429):
+                raise RuntimeError(f"could not fetch {url}: {exc}") from exc
+            last = exc
+            log.warning("GET %s failed (attempt %d/%d): %s", url, attempt, retries, exc)
+            if attempt < retries:
+                time.sleep(delay)
+                delay *= 2
         except Exception as exc:  # noqa: BLE001 - retried and re-raised below
             last = exc
             log.warning("GET %s failed (attempt %d/%d): %s", url, attempt, retries, exc)
@@ -661,12 +678,15 @@ def wikipedia_search(query: str, limit: int = 8) -> list[str]:
 def fuel_candidate_urls() -> list[str]:
     """Known article URLs first, then whatever a search turns up."""
     urls = list(FUEL_URLS)
-    try:
-        for url in wikipedia_search(FUEL_SEARCH):
+    for query in FUEL_SEARCHES:
+        try:
+            found = wikipedia_search(query)
+        except Exception as exc:  # noqa: BLE001 - search is a bonus, not a requirement
+            log.warning("Wikipedia search %r failed: %s", query, exc)
+            continue
+        for url in found:
             if url not in urls:
                 urls.append(url)
-    except Exception as exc:  # noqa: BLE001 - search is a bonus, not a requirement
-        log.warning("Wikipedia search failed: %s", exc)
     return urls
 
 
