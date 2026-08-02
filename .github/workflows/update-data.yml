@@ -39,6 +39,9 @@ jobs:
       - name: Run parser tests
         run: python scripts/test_parser.py
 
+      - name: Diagnose fuel source
+        run: python scripts/_diagnose.py
+
       - name: Scrape sources and rebuild the dataset
         run: python scripts/fetch_data.py --output data/fuel_prices.json
 
