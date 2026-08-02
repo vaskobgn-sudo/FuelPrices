@@ -97,16 +97,23 @@ def gpp_page(fuel: str, prices: dict[str, str]) -> str:
     links = "".join(
         f'<a href="/{c.replace(" ", "-")}/{fuel}_prices/">{c}</a>'
         for c in prices)
-    numbers = "".join(f'<span class="pricenumbers">{v}</span>'
-                      for v in prices.values())
+    # Each bar is a positioned div with a background colour holding one label;
+    # the axis ticks below are bare divs, and must not be mistaken for prices.
+    bars = "".join(
+        f'<div style="position:absolute; left:21px; width:32px; height:17px;'
+        f' background:#e2bb04;">'
+        f'<div style="position:absolute; top:2px; color:#000000;">{v}</div>'
+        f'</div>'
+        for v in prices.values())
+    ticks = "".join(
+        f'<div style="position:absolute; top:10px;">{t}</div>'
+        for t in ("0.00", "0.50", "1.00", "1.50", "2.00"))
     return f"""
     <html><body>
       <h1>{fuel.title()} prices, litre, 28-Jul-2026</h1>
       <p>The average price of {fuel} is shown in U.S. Dollar per litre.</p>
-      <div id="graphic">
-        <div id="outsideLinks">{links}</div>
-        <div class="graph">{numbers}</div>
-      </div>
+      <div id="outsideLinks">{links}</div>
+      <div id="graphic"><div style="position:relative;">{bars}{ticks}</div></div>
     </body></html>
     """
 
@@ -185,11 +192,8 @@ def test_fuel_page() -> None:
     check("falls back to raw markup when ids change",
           len(fd.gpp_pairs(BeautifulSoup(stripped, "html.parser"), stripped, "gasoline")), 4)
 
-    # The live pages put no class on the price labels at all.
-    unclassed = PETROL_HTML.replace('class="pricenumbers"', 'class="barlabel"')
-    check("prices found without a class hook",
-          fd.gpp_pairs(BeautifulSoup(unclassed, "html.parser"), unclassed, "gasoline")[:2],
-          [("Bulgaria", 1.379), ("Germany", 1.85)])
+    check("axis ticks are not mistaken for prices",
+          fd.bar_labels(soup.find(id="graphic")), [1.379, 1.85, 0.9, 3.1])
 
     gallons = PETROL_HTML.replace("litre", "gallon")
     check("gallon pages are converted",

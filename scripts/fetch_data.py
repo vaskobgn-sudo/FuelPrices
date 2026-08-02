@@ -635,6 +635,28 @@ def gpp_unit(soup: BeautifulSoup) -> tuple[str, float]:
     return currency, 1.0
 
 
+PRICE_LABEL_RE = re.compile(r"\d{1,3}[.,]\d{2,3}")
+
+
+def bar_labels(chart: Tag) -> list[float]:
+    """Prices printed on the chart's bars, in document order.
+
+    The bars carry no class names: each is a positioned div with a background
+    colour, holding one div with the price. Requiring that coloured parent is
+    what keeps the axis tick labels out of the result.
+    """
+    values = []
+    for node in chart.find_all("div", style=True):
+        text = node.get_text(strip=True)
+        if not PRICE_LABEL_RE.fullmatch(text):
+            continue
+        parent = node.parent
+        if not isinstance(parent, Tag) or "background" not in parent.get("style", ""):
+            continue
+        values.append(float(text.replace(",", ".")))
+    return values
+
+
 def gpp_pairs(soup: BeautifulSoup, html: str, fuel: str) -> list[tuple[str, float]]:
     """Country/price pairs from a GlobalPetrolPrices chart page.
 
@@ -652,12 +674,7 @@ def gpp_pairs(soup: BeautifulSoup, html: str, fuel: str) -> list[tuple[str, floa
     prices = [parse_number(node.get_text())
               for node in soup.select(".pricenumbers")]
     if not prices:
-        # The bar labels carry no stable class name, so take every standalone
-        # price-shaped number inside the chart, in document order.
-        chart = soup.find(id="graphic") or soup
-        prices = [float(text.replace(",", "."))
-                  for text in chart.stripped_strings
-                  if re.fullmatch(r"\d{1,2}[.,]\d{2,3}", text)]
+        prices = bar_labels(soup.find(id="graphic") or soup)
 
     if countries and prices and len(countries) == len(prices):
         return [(c, p) for c, p in zip(countries, prices) if p is not None]
