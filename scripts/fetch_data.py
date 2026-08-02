@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Collect minimum wages and fuel prices from Wikipedia, convert to EUR.
+"""Collect minimum wages and fuel prices, convert both to EUR.
 
-The script scrapes two Wikipedia articles, joins them on country name,
-converts every monetary figure to euro through the Frankfurter API and
-writes a single JSON document consumed by the static front-end.
+Minimum wages come from Wikipedia and pump prices from GlobalPetrolPrices,
+which is the source Wikipedia itself cites now that its own per-country price
+table has been removed. Everything is converted to euro through the
+Frankfurter API and written as one JSON document for the static front-end.
 
-Wikipedia rewrites the layout of these tables fairly often, so columns are
-located by matching header text rather than by a fixed index, and every
-choice the script makes is logged to make failures diagnosable from CI logs.
+Both sites reshuffle their markup regularly, so the parsers match on header
+text and page structure rather than fixed positions, and every choice the
+script makes is logged to make failures diagnosable from CI logs.
 """
 
 from __future__ import annotations
@@ -22,28 +23,19 @@ import time
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
-from urllib.parse import quote
 
 import requests
 from bs4 import BeautifulSoup, Tag
 
 WAGE_URL = "https://en.wikipedia.org/wiki/List_of_countries_by_minimum_wage"
-# Wikipedia has moved the price table between articles before, so try the
-# dedicated list first and keep the older article as a fallback.
-FUEL_URLS = (
-    "https://en.wikipedia.org/wiki/List_of_countries_by_gasoline_and_diesel_prices",
-    "https://en.wikipedia.org/wiki/Gasoline_and_diesel_usage_and_pricing",
-)
-WIKI_API = "https://en.wikipedia.org/w/api.php"
-# Several angles on the same question; `insource:` matches the wikitext of the
-# table itself, which survives the article being renamed or split.
-FUEL_SEARCHES = (
-    'insource:"Gasoline prices" insource:"Diesel prices"',
-    'insource:/Gasoline.{0,20}Diesel/ litre price country',
-    "list of countries by gasoline and diesel prices",
-    "fuel prices by country",
-)
+FUEL_URLS = {
+    "petrol": "https://www.globalpetrolprices.com/gasoline_prices/",
+    "diesel": "https://www.globalpetrolprices.com/diesel_prices/",
+}
+
+# Display names picked up while reading the fuel pages, keyed the same way as
+# everything else so the two sources can be joined.
+FUEL_NAMES: dict[str, str] = {}
 
 FRANKFURTER_URLS = (
     "https://api.frankfurter.dev/v1/latest?base=EUR",
@@ -56,7 +48,6 @@ USER_AGENT = (
 )
 
 LITRES_PER_US_GALLON = 3.785411784
-LITRES_PER_IMP_GALLON = 4.54609
 WEEKS_PER_MONTH = 52 / 12
 DEFAULT_WORKWEEK_HOURS = 40.0
 
@@ -481,41 +472,6 @@ def pick_wage_column(headers: list[str]) -> tuple[int, str, str] | None:
     return index, period, currency
 
 
-def pick_fuel_column(headers: list[str], keywords: Iterable[str]) -> tuple[int, str, float] | None:
-    """Choose a fuel price column.
-
-    Returns ``(index, currency, litres_per_unit)`` so callers can normalise
-    gallon-based columns to a price per litre.
-    """
-    best: tuple[float, int, str, float] | None = None
-    for index, header in enumerate(headers):
-        lowered = header.lower()
-        if not any(word in lowered for word in keywords):
-            continue
-        if "%" in header or "tax" in lowered or "consumption" in lowered:
-            continue
-
-        if re.search(r"imp(?:erial)?\.? gal", lowered):
-            unit, litres = "imperial gallon", LITRES_PER_IMP_GALLON
-        elif "gal" in lowered:
-            unit, litres = "gallon", LITRES_PER_US_GALLON
-        else:
-            unit, litres = "litre", 1.0
-
-        score = 100.0 if unit == "litre" else 40.0
-        if re.search(r"\bl\b|litre|liter", lowered):
-            score += 20
-        if re.search(r"us\$|\busd\b|\$", lowered):
-            score += 10
-        if best is None or score > best[0]:
-            best = (score, index, detect_currency(header), litres)
-
-    if best is None:
-        return None
-    _, index, currency, litres = best
-    return index, currency, litres
-
-
 def find_workweek_column(headers: list[str]) -> int | None:
     for index, header in enumerate(headers):
         lowered = header.lower()
@@ -664,140 +620,132 @@ def scrape_minimum_wages(rates: dict[str, float]) -> dict[str, dict]:
     return result
 
 
-def wikipedia_search(query: str, limit: int = 8) -> list[str]:
-    """Article URLs matching `query`, so a renamed article is still found."""
-    url = (f"{WIKI_API}?action=query&list=search&format=json"
-           f"&srlimit={limit}&srsearch={quote(query)}")
-    payload = http_get(url).json()
-    titles = [hit["title"] for hit in payload["query"]["search"]]
-    log.info("Wikipedia search %r -> %s", query, ", ".join(titles) or "nothing")
-    return ["https://en.wikipedia.org/wiki/" + quote(t.replace(" ", "_"))
-            for t in titles]
+def gpp_price_date(soup: BeautifulSoup) -> str | None:
+    """The 'dd-Mmm-yyyy' stamp GlobalPetrolPrices prints above its charts."""
+    match = re.search(r"\b(\d{1,2}-[A-Za-z]{3}-\d{4})\b", soup.get_text(" ", strip=True)[:4000])
+    return match.group(1) if match else None
 
 
-def fuel_candidate_urls() -> list[str]:
-    """Known article URLs first, then whatever a search turns up."""
-    urls = list(FUEL_URLS)
-    for query in FUEL_SEARCHES:
-        try:
-            found = wikipedia_search(query)
-        except Exception as exc:  # noqa: BLE001 - search is a bonus, not a requirement
-            log.warning("Wikipedia search %r failed: %s", query, exc)
-            continue
-        for url in found:
-            if url not in urls:
-                urls.append(url)
-    return urls
+def gpp_unit(soup: BeautifulSoup) -> tuple[str, float]:
+    """Currency and litres-per-unit implied by the page's own wording."""
+    text = soup.get_text(" ", strip=True)[:4000].lower()
+    currency = "EUR" if ("euro" in text and "dollar" not in text) else "USD"
+    if "gallon" in text and "liter" not in text and "litre" not in text:
+        return currency, LITRES_PER_US_GALLON
+    return currency, 1.0
 
 
-def find_fuel_table(url: str) -> tuple[list[str], list[list[str]], tuple, tuple] | None:
-    """Best gasoline/diesel table on a page, or None if the page has none."""
-    tables = wikitables(http_get(url).text)
-    candidates = []
-    for table in tables:
+def gpp_pairs(soup: BeautifulSoup, html: str, fuel: str) -> list[tuple[str, float]]:
+    """Country/price pairs from a GlobalPetrolPrices chart page.
+
+    The page renders the ranking as two parallel lists - country links on one
+    side, price labels on the other - rather than as a table, so pair them by
+    position and fall back to a plain table if the layout ever changes.
+    """
+    countries = [a.get_text(" ", strip=True)
+                 for a in soup.select("#outsideLinks a")]
+    prices = [parse_number(node.get_text())
+              for node in soup.select(".pricenumbers")]
+
+    if not countries:
+        # Same idea, straight off the markup, in case the ids change.
+        countries = [m.group(1) for m in re.finditer(
+            rf'href="/([^"/]+)/{fuel}_prices/"', html, re.IGNORECASE)]
+    if not prices:
+        prices = [parse_number(m.group(1)) for m in re.finditer(
+            r'class="pricenumbers"[^>]*>\s*([\d.,]+)', html)]
+
+    if countries and prices and len(countries) == len(prices):
+        return [(c, p) for c, p in zip(countries, prices) if p is not None]
+
+    # Last resort: an ordinary table of country and price.
+    for table in soup.find_all("table"):
         headers, rows = split_header(table_to_grid(table))
-        joined = " | ".join(headers).lower()
-        if not re.search(r"gasoline|petrol", joined) or "diesel" not in joined:
-            continue
-        petrol = pick_fuel_column(headers, ("gasoline", "petrol"))
-        diesel = pick_fuel_column(headers, ("diesel",))
-        if petrol is None or diesel is None:
-            continue
-        candidates.append((len(rows), headers, rows, petrol, diesel))
+        country_index = find_country_column(headers)
+        pairs = []
+        for row in rows:
+            if len(row) < 2:
+                continue
+            value = next((parse_number(cell) for cell in row[country_index + 1:]
+                          if parse_number(cell) is not None), None)
+            if value is not None:
+                pairs.append((row[country_index], value))
+        if len(pairs) > 20:
+            return pairs
 
-    if not candidates:
-        describe_tables(url, tables)
-        return None
+    log.error("Could not pair countries with prices on the %s page: "
+              "%d countries, %d prices", fuel, len(countries), len(prices))
+    log.error("  first countries: %s", ", ".join(countries[:5]) or "none")
+    log.error("  first prices: %s", ", ".join(str(p) for p in prices[:5]) or "none")
+    log.error("  element ids seen: %s", ", ".join(sorted({
+        str(tag.get("id")) for tag in soup.find_all(id=True)})[:40]) or "none")
+    return []
 
-    _, headers, rows, petrol, diesel = max(candidates, key=lambda c: c[0])
-    return headers, rows, petrol, diesel
 
+def scrape_fuel_page(url: str, fuel: str, rates: dict[str, float]) -> tuple[dict[str, float], str | None]:
+    """Country key -> price in EUR per litre for one fuel."""
+    html = http_get(url).text
+    soup = BeautifulSoup(html, "html.parser")
 
-def scrape_fuel_prices(rates: dict[str, float]) -> tuple[dict[str, dict], str]:
-    """Country key -> fuel price record (EUR per litre), plus the source used."""
-    found = None
-    source_url = FUEL_URLS[0]
-    for url in fuel_candidate_urls():
-        try:
-            found = find_fuel_table(url)
-        except Exception as exc:  # noqa: BLE001 - a dead URL should not end the run
-            log.warning("Could not read %s: %s", url, exc)
-            continue
-        if found is not None:
-            source_url = url
-            break
+    currency, litres_per_unit = gpp_unit(soup)
+    date = gpp_price_date(soup)
+    pairs = gpp_pairs(soup, html, fuel)
+    log.info("%s page: %d entries, priced in %s per %.4f L, dated %s",
+             fuel, len(pairs), currency, litres_per_unit, date or "unknown")
 
-    if found is None:
-        raise RuntimeError("no usable fuel price table found on any known Wikipedia page")
-
-    log.info("Fuel prices sourced from %s", source_url)
-    headers, rows, petrol, diesel = found
-    petrol_index, petrol_currency, petrol_litres = petrol
-    diesel_index, diesel_currency, diesel_litres = diesel
-    country_index = find_country_column(headers)
-    date_index = find_date_column(headers)
-
-    log.info("Fuel price table: %d rows", len(rows))
-    log.info("  country column [%d] %r", country_index, headers[country_index])
-    log.info("  petrol column  [%d] %r -> %s per %.4f L", petrol_index,
-             headers[petrol_index], petrol_currency, petrol_litres)
-    log.info("  diesel column  [%d] %r -> %s per %.4f L", diesel_index,
-             headers[diesel_index], diesel_currency, diesel_litres)
-    log_sample_rows(rows)
-
-    def price(row: list[str], index: int, currency: str, litres: float, name: str,
-              label: str) -> float | None:
-        if index >= len(row):
-            return None
-        value = parse_number(row[index])
-        if value is None or value <= 0:
-            return None
-        eur = to_eur(value / litres, currency, rates)
-        if eur is None:
-            return None
-        if not MIN_FUEL_EUR_PER_L <= eur <= MAX_FUEL_EUR_PER_L:
-            log.warning("Implausible %s price for %s: %.3f EUR/L (raw %r) - dropped",
-                        label, name, eur, row[index])
-            return None
-        return round(eur, 3)
-
-    result: dict[str, dict] = {}
-    for row in rows:
-        if country_index >= len(row):
-            continue
-        country = canonical_country(row[country_index])
-        if country is None:
+    prices: dict[str, float] = {}
+    names: dict[str, str] = {}
+    for raw_name, value in pairs:
+        country = canonical_country(raw_name)
+        if country is None or value <= 0:
             continue
         name, key = country
-        if key in result:
+        if key in prices:
             continue
-
-        petrol_eur = price(row, petrol_index, petrol_currency, petrol_litres, name, "petrol")
-        diesel_eur = price(row, diesel_index, diesel_currency, diesel_litres, name, "diesel")
-        if petrol_eur is None and diesel_eur is None:
+        eur = to_eur(value / litres_per_unit, currency, rates)
+        if eur is None:
             continue
+        if not MIN_FUEL_EUR_PER_L <= eur <= MAX_FUEL_EUR_PER_L:
+            log.warning("Implausible %s price for %s: %.3f EUR/L (raw %r) - dropped",
+                        fuel, name, eur, value)
+            continue
+        prices[key] = round(eur, 3)
+        names[key] = name
 
+    log.info("  kept %d %s prices, e.g. %s", len(prices), fuel,
+             ", ".join(f"{names[k]} {prices[k]}" for k in list(prices)[:3]) or "none")
+    FUEL_NAMES.update(names)
+    return prices, date
+
+
+def scrape_fuel_prices(rates: dict[str, float]) -> dict[str, dict]:
+    """Country key -> fuel price record (EUR per litre)."""
+    petrol, petrol_date = scrape_fuel_page(FUEL_URLS["petrol"], "gasoline", rates)
+    diesel, diesel_date = scrape_fuel_page(FUEL_URLS["diesel"], "diesel", rates)
+
+    if not petrol and not diesel:
+        raise RuntimeError("no fuel prices could be read from GlobalPetrolPrices")
+
+    result: dict[str, dict] = {}
+    for key in set(petrol) | set(diesel):
         result[key] = {
-            "country": name,
-            "petrol_eur_l": petrol_eur,
-            "diesel_eur_l": diesel_eur,
-            "fuel_price_date": (row[date_index].strip()
-                                if date_index is not None and date_index < len(row) else None) or None,
+            "country": FUEL_NAMES.get(key, key),
+            "petrol_eur_l": petrol.get(key),
+            "diesel_eur_l": diesel.get(key),
+            "fuel_price_date": petrol_date or diesel_date,
         }
 
-    log.info("Parsed %d fuel price rows", len(result))
-    return result, source_url
+    log.info("Parsed %d countries with at least one fuel price", len(result))
+    return result
 
 
-# --------------------------------------------------------------------------
-# Assembly
 # --------------------------------------------------------------------------
 def build_dataset() -> dict:
     fx = fetch_eur_rates()
     rates = fx["rates"]
 
     wages = scrape_minimum_wages(rates)
-    fuels, fuel_url = scrape_fuel_prices(rates)
+    fuels = scrape_fuel_prices(rates)
 
     countries = []
     for key in sorted(set(wages) & set(fuels)):
@@ -820,7 +768,7 @@ def build_dataset() -> dict:
         countries.append(entry)
 
     if not countries:
-        raise RuntimeError("no countries matched between the two Wikipedia tables")
+        raise RuntimeError("no country appears in both the wage and the fuel data")
 
     missing_wage = sorted(fuels[k]["country"] for k in set(fuels) - set(wages))
     missing_fuel = sorted(wages[k]["country"] for k in set(wages) - set(fuels))
@@ -837,7 +785,8 @@ def build_dataset() -> dict:
         "fx": {"date": fx["date"], "usd_per_eur": rates.get("USD")},
         "sources": {
             "minimum_wage": WAGE_URL,
-            "fuel_prices": fuel_url,
+            "fuel_prices": FUEL_URLS["petrol"],
+            "diesel_prices": FUEL_URLS["diesel"],
             "exchange_rates": FRANKFURTER_URLS[0],
         },
         "stats": {

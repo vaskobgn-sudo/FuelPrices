@@ -6,7 +6,7 @@
 
 | Част | Технология |
 | --- | --- |
-| Събиране на данни | Python скрипт (Wikipedia scraping + Frankfurter API) |
+| Събиране на данни | Python скрипт (scraping + Frankfurter API) |
 | Автоматизация | GitHub Actions, веднъж дневно |
 | Интерфейс | чист HTML / CSS / JavaScript, без зависимости |
 
@@ -24,21 +24,31 @@ scripts/test_parser.py         офлайн тестове на парсера
 
 ## Източници на данни
 
-* [List of countries by minimum wage](https://en.wikipedia.org/wiki/List_of_countries_by_minimum_wage) — минимални заплати
-* [Gasoline and diesel usage and pricing](https://en.wikipedia.org/wiki/Gasoline_and_diesel_usage_and_pricing) — цени на горива
+* [List of countries by minimum wage](https://en.wikipedia.org/wiki/List_of_countries_by_minimum_wage) — минимални заплати (Wikipedia)
+* [GlobalPetrolPrices](https://www.globalpetrolprices.com/gasoline_prices/) — цени на бензин и [дизел](https://www.globalpetrolprices.com/diesel_prices/)
 * [Frankfurter API](https://api.frankfurter.dev) — валутни курсове (данни на ЕЦБ)
+
+> Първоначално и цените на горивата трябваше да идват от Wikipedia. Оказа се, че
+> статията *Gasoline and diesel usage and pricing* вече не съдържа таблица с цени
+> по държави — в целия ѝ wikitext има само едно начало на таблица и то е
+> оформителен блок за снимки. Затова цените се вземат от GlobalPetrolPrices,
+> който самата Wikipedia цитира като източник.
 
 ## Как работи скрейпърът
 
 1. Тегли курсовете от Frankfurter с база EUR.
-2. Сваля двете страници от Wikipedia и намира подходящите таблици.
-3. **Открива колоните по текста на заглавията им**, а не по номер — Wikipedia
-   сменя структурата на таблиците често, а така скриптът я преживява. Предпочита
-   номинални стойности пред PPP и цени за литър пред цени за галон (галоните се
-   преизчисляват автоматично).
+2. Сваля таблицата с минимални заплати от Wikipedia и **открива колоните по
+   текста на заглавията им**, а не по номер — Wikipedia сменя структурата на
+   таблиците често, а така скриптът я преживява. Предпочита номинални стойности
+   пред PPP.
+3. Сваля цените на бензин и дизел от GlobalPetrolPrices. Страниците там не са
+   таблици, а два успоредни списъка (държави и цени), затова се сдвояват по
+   позиция; ако това не сработи, скриптът минава към разчитане направо от
+   markup-а, а после и към обикновена таблица. Цени за галон се преизчисляват
+   в литри автоматично.
 4. Нормализира заплатите до **месечна** стойност (годишните се делят на 12,
    почасовите се умножават по работната седмица) и всичко се конвертира в евро.
-5. Свързва двете таблици по име на държава, като изравнява различните изписвания
+5. Свързва двата източника по име на държава, като изравнява различните изписвания
    (`Czech Republic` / `Czechia`, `Türkiye` / `Turkey`, `Ivory Coast` /
    `Côte d'Ivoire` и т.н.).
 6. Отхвърля неправдоподобни стойности (заплата над 20 000 €/месец, цена на гориво
@@ -55,7 +65,7 @@ scripts/test_parser.py         офлайн тестове на парсера
   "generated_at": "2026-08-02T04:21:07Z",
   "base_currency": "EUR",
   "fx": { "date": "2026-08-01", "usd_per_eur": 1.0842 },
-  "sources": { "minimum_wage": "...", "fuel_prices": "...", "exchange_rates": "..." },
+  "sources": { "minimum_wage": "...", "fuel_prices": "...", "diesel_prices": "...", "exchange_rates": "..." },
   "stats": { "countries": 120, "median_petrol_litres": 611.4 },
   "countries": [
     {

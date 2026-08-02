@@ -379,7 +379,8 @@
     var sources = data.sources || {};
     var links = [
       { href: sources.minimum_wage, text: "Минимални заплати (Wikipedia)" },
-      { href: sources.fuel_prices, text: "Цени на горива (Wikipedia)" },
+      { href: sources.fuel_prices, text: "Цени на бензин (GlobalPetrolPrices)" },
+      { href: sources.diesel_prices, text: "Цени на дизел (GlobalPetrolPrices)" },
       { href: sources.exchange_rates, text: "Frankfurter API" }
     ].filter(function (link) { return !!link.href; });
 

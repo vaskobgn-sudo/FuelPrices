@@ -91,23 +91,34 @@ WAGE_HTML_MERGED = """
 </table>
 """
 
-FUEL_HTML = """
-<table class="wikitable sortable">
-<tr>
-  <th>Country or territory</th>
-  <th>Gasoline (US$/L)</th>
-  <th>Gasoline (US$/gal)</th>
-  <th>Diesel (US$/L)</th>
-  <th>Diesel (US$/gal)</th>
-  <th>Date</th>
-</tr>
-<tr><td><a href="/wiki/Bulgaria">Bulgaria</a></td>
-    <td>1.379</td><td>5.22</td><td>1.415</td><td>5.36</td><td>2025-06-30</td></tr>
-<tr><td>Germany</td><td>1.850</td><td>7.00</td><td>1.760</td><td>6.66</td><td>2025-06-30</td></tr>
-<tr><td>United States</td><td>0.900</td><td>3.41</td><td>1.000</td><td>3.79</td><td>2025-06-30</td></tr>
-<tr><td>Hong Kong</td><td>3.100</td><td>11.73</td><td>2.400</td><td>9.08</td><td>2025-06-30</td></tr>
-</table>
-"""
+# Mirrors a GlobalPetrolPrices chart page: country links and price labels are
+# two parallel lists, not a table.
+def gpp_page(fuel: str, prices: dict[str, str]) -> str:
+    links = "".join(
+        f'<a href="/{c.replace(" ", "-")}/{fuel}_prices/">{c}</a>'
+        for c in prices)
+    numbers = "".join(f'<span class="pricenumbers">{v}</span>'
+                      for v in prices.values())
+    return f"""
+    <html><body>
+      <h1>{fuel.title()} prices, litre, 28-Jul-2026</h1>
+      <p>The average price of {fuel} is shown in U.S. Dollar per litre.</p>
+      <div id="graphic">
+        <div id="outsideLinks">{links}</div>
+        <div class="graph">{numbers}</div>
+      </div>
+    </body></html>
+    """
+
+
+PETROL_HTML = gpp_page("gasoline", {
+    "Bulgaria": "1.379", "Germany": "1.850", "United States": "0.900",
+    "Hong Kong": "3.100",
+})
+DIESEL_HTML = gpp_page("diesel", {
+    "Bulgaria": "1.415", "Germany": "1.760", "United States": "1.000",
+    "Hong Kong": "2.400",
+})
 
 RATES = {"EUR": 1.0, "USD": 1.10, "GBP": 0.85}
 
@@ -157,20 +168,27 @@ def test_wage_table_merged_header() -> None:
           fd.pick_wage_column(headers), (1, "annual", "USD"))
 
 
-def test_fuel_table() -> None:
-    print("== fuel price table ==")
-    headers, _ = fd.split_header(fd.table_to_grid(table(FUEL_HTML)))
+def test_fuel_page() -> None:
+    print("== fuel price page ==")
+    soup = BeautifulSoup(PETROL_HTML, "html.parser")
 
-    check("petrol uses the per-litre column",
-          fd.pick_fuel_column(headers, ("gasoline", "petrol")), (1, "USD", 1.0))
-    check("diesel uses the per-litre column",
-          fd.pick_fuel_column(headers, ("diesel",)), (3, "USD", 1.0))
-    check("gallons convert when litres are unavailable",
-          fd.pick_fuel_column(["Country", "Gasoline (US$/gal)"], ("gasoline",)),
-          (1, "USD", fd.LITRES_PER_US_GALLON))
-    check("imperial gallons recognised",
-          fd.pick_fuel_column(["Country", "Petrol (US$/imp gal)"], ("petrol",)),
-          (1, "USD", fd.LITRES_PER_IMP_GALLON))
+    check("currency and unit read off the page", fd.gpp_unit(soup), ("USD", 1.0))
+    check("price date read off the page", fd.gpp_price_date(soup), "28-Jul-2026")
+
+    pairs = fd.gpp_pairs(soup, PETROL_HTML, "gasoline")
+    check("countries paired with prices", pairs[:2],
+          [("Bulgaria", 1.379), ("Germany", 1.85)])
+    check("all rows paired", len(pairs), 4)
+
+    # Same page with the ids renamed, to exercise the markup-level fallback.
+    stripped = PETROL_HTML.replace('id="outsideLinks"', 'id="renamed"')
+    check("falls back to raw markup when ids change",
+          len(fd.gpp_pairs(BeautifulSoup(stripped, "html.parser"), stripped, "gasoline")), 4)
+
+    gallons = PETROL_HTML.replace("litre", "gallon")
+    check("gallon pages are converted",
+          fd.gpp_unit(BeautifulSoup(gallons, "html.parser")),
+          ("USD", fd.LITRES_PER_US_GALLON))
 
 
 def test_conversions() -> None:
@@ -219,17 +237,11 @@ class FakeResponse:
         return json.loads(self.text)
 
 
-def search_payload(*titles: str) -> str:
-    return json.dumps({"query": {"search": [{"title": t} for t in titles]}})
-
-
-def build_with(pages: dict[str, str], search_results: tuple[str, ...] = ()) -> dict:
+def build_with(pages: dict[str, str]) -> dict:
     """Run build_dataset against canned pages instead of the network."""
     original_get, original_rates = fd.http_get, fd.fetch_eur_rates
 
     def fake_get(url: str, **_kwargs):
-        if url.startswith(fd.WIKI_API):
-            return FakeResponse(search_payload(*search_results))
         if url not in pages:
             raise RuntimeError(f"404 for {url}")
         return FakeResponse(pages[url])
@@ -242,37 +254,15 @@ def build_with(pages: dict[str, str], search_results: tuple[str, ...] = ()) -> d
         fd.http_get, fd.fetch_eur_rates = original_get, original_rates
 
 
-def test_fuel_source_fallback() -> None:
-    print("== fuel source fallback ==")
-    # The first candidate article exists but carries only navigation tables,
-    # which is exactly how the old fuel page broke.
-    navboxes = "<table class='wikitable'><tr><th>Petroleum industry</th></tr></table>"
-    dataset = build_with({
-        fd.WAGE_URL: WAGE_HTML,
-        fd.FUEL_URLS[0]: navboxes,
-        fd.FUEL_URLS[1]: FUEL_HTML,
-    })
-    check("falls back to the second article", dataset["sources"]["fuel_prices"], fd.FUEL_URLS[1])
-    check("still produces countries", len(dataset["countries"]), 3)
-
-    dataset = build_with({fd.WAGE_URL: WAGE_HTML, fd.FUEL_URLS[1]: FUEL_HTML})
-    check("survives a dead first URL", dataset["sources"]["fuel_prices"], fd.FUEL_URLS[1])
-
-    # Both known articles gone: the search API has to supply the replacement.
-    renamed = "https://en.wikipedia.org/wiki/Fuel_prices_by_country"
-    dataset = build_with(
-        {fd.WAGE_URL: WAGE_HTML, renamed: FUEL_HTML},
-        search_results=("Fuel prices by country",),
-    )
-    check("finds a renamed article through search",
-          dataset["sources"]["fuel_prices"], renamed)
-
-
 def test_end_to_end() -> None:
     print("== end to end ==")
-    dataset = build_with({fd.WAGE_URL: WAGE_HTML, fd.FUEL_URLS[0]: FUEL_HTML})
+    dataset = build_with({
+        fd.WAGE_URL: WAGE_HTML,
+        fd.FUEL_URLS["petrol"]: PETROL_HTML,
+        fd.FUEL_URLS["diesel"]: DIESEL_HTML,
+    })
 
-    check("source recorded", dataset["sources"]["fuel_prices"], fd.FUEL_URLS[0])
+    check("source recorded", dataset["sources"]["fuel_prices"], fd.FUEL_URLS["petrol"])
 
     by_name = {c["country"]: c for c in dataset["countries"]}
 
@@ -297,11 +287,10 @@ def test_end_to_end() -> None:
 def main() -> int:
     test_wage_table()
     test_wage_table_merged_header()
-    test_fuel_table()
+    test_fuel_page()
     test_conversions()
     test_country_names()
     test_numbers()
-    test_fuel_source_fallback()
     test_end_to_end()
 
     print()
