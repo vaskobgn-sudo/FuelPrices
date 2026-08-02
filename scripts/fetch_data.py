@@ -28,7 +28,12 @@ import requests
 from bs4 import BeautifulSoup, Tag
 
 WAGE_URL = "https://en.wikipedia.org/wiki/List_of_countries_by_minimum_wage"
-FUEL_URL = "https://en.wikipedia.org/wiki/Gasoline_and_diesel_usage_and_pricing"
+# Wikipedia has moved the price table between articles before, so try the
+# dedicated list first and keep the older article as a fallback.
+FUEL_URLS = (
+    "https://en.wikipedia.org/wiki/List_of_countries_by_gasoline_and_diesel_prices",
+    "https://en.wikipedia.org/wiki/Gasoline_and_diesel_usage_and_pricing",
+)
 FRANKFURTER_URLS = (
     "https://api.frankfurter.dev/v1/latest?base=EUR",
     "https://api.frankfurter.app/latest?base=EUR",
@@ -46,7 +51,9 @@ DEFAULT_WORKWEEK_HOURS = 40.0
 
 # Plausibility guards: anything outside these ranges is treated as a parsing
 # accident rather than a real figure, and is dropped with a warning.
-MIN_MONTHLY_WAGE_EUR = 1.0
+# The floor sits below the world's lowest real minimum wages (Venezuela's is
+# under 1 EUR/month) so that only obvious misreads are discarded.
+MIN_MONTHLY_WAGE_EUR = 0.5
 MAX_MONTHLY_WAGE_EUR = 20_000.0
 MIN_FUEL_EUR_PER_L = 0.02
 MAX_FUEL_EUR_PER_L = 10.0
@@ -636,10 +643,9 @@ def scrape_minimum_wages(rates: dict[str, float]) -> dict[str, dict]:
     return result
 
 
-def scrape_fuel_prices(rates: dict[str, float]) -> dict[str, dict]:
-    """Country key -> fuel price record (EUR per litre)."""
-    html = http_get(FUEL_URL).text
-    tables = wikitables(html)
+def find_fuel_table(url: str) -> tuple[list[str], list[list[str]], tuple, tuple] | None:
+    """Best gasoline/diesel table on a page, or None if the page has none."""
+    tables = wikitables(http_get(url).text)
     candidates = []
     for table in tables:
         headers, rows = split_header(table_to_grid(table))
@@ -653,10 +659,32 @@ def scrape_fuel_prices(rates: dict[str, float]) -> dict[str, dict]:
         candidates.append((len(rows), headers, rows, petrol, diesel))
 
     if not candidates:
-        describe_tables(FUEL_URL, tables)
-        raise RuntimeError("no usable fuel price table found on the Wikipedia page")
+        describe_tables(url, tables)
+        return None
 
     _, headers, rows, petrol, diesel = max(candidates, key=lambda c: c[0])
+    return headers, rows, petrol, diesel
+
+
+def scrape_fuel_prices(rates: dict[str, float]) -> tuple[dict[str, dict], str]:
+    """Country key -> fuel price record (EUR per litre), plus the source used."""
+    found = None
+    source_url = FUEL_URLS[0]
+    for url in FUEL_URLS:
+        try:
+            found = find_fuel_table(url)
+        except Exception as exc:  # noqa: BLE001 - a dead URL should not end the run
+            log.warning("Could not read %s: %s", url, exc)
+            continue
+        if found is not None:
+            source_url = url
+            break
+
+    if found is None:
+        raise RuntimeError("no usable fuel price table found on any known Wikipedia page")
+
+    log.info("Fuel prices sourced from %s", source_url)
+    headers, rows, petrol, diesel = found
     petrol_index, petrol_currency, petrol_litres = petrol
     diesel_index, diesel_currency, diesel_litres = diesel
     country_index = find_country_column(headers)
@@ -711,7 +739,7 @@ def scrape_fuel_prices(rates: dict[str, float]) -> dict[str, dict]:
         }
 
     log.info("Parsed %d fuel price rows", len(result))
-    return result
+    return result, source_url
 
 
 # --------------------------------------------------------------------------
@@ -722,7 +750,7 @@ def build_dataset() -> dict:
     rates = fx["rates"]
 
     wages = scrape_minimum_wages(rates)
-    fuels = scrape_fuel_prices(rates)
+    fuels, fuel_url = scrape_fuel_prices(rates)
 
     countries = []
     for key in sorted(set(wages) & set(fuels)):
@@ -762,7 +790,7 @@ def build_dataset() -> dict:
         "fx": {"date": fx["date"], "usd_per_eur": rates.get("USD")},
         "sources": {
             "minimum_wage": WAGE_URL,
-            "fuel_prices": FUEL_URL,
+            "fuel_prices": fuel_url,
             "exchange_rates": FRANKFURTER_URLS[0],
         },
         "stats": {

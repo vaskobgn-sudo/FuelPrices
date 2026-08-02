@@ -210,28 +210,50 @@ def test_numbers() -> None:
         check(f"parse {raw!r}", fd.parse_number(raw), want)
 
 
-def test_end_to_end() -> None:
-    print("== end to end ==")
+class FakeResponse:
+    def __init__(self, text: str) -> None:
+        self.text = text
 
-    class FakeResponse:
-        def __init__(self, text: str) -> None:
-            self.text = text
 
+def build_with(pages: dict[str, str]) -> dict:
+    """Run build_dataset against canned pages instead of the network."""
     original_get, original_rates = fd.http_get, fd.fetch_eur_rates
 
     def fake_get(url: str, **_kwargs):
-        if url == fd.WAGE_URL:
-            return FakeResponse(WAGE_HTML)
-        if url == fd.FUEL_URL:
-            return FakeResponse(FUEL_HTML)
-        raise AssertionError(f"unexpected URL {url}")
+        if url not in pages:
+            raise RuntimeError(f"404 for {url}")
+        return FakeResponse(pages[url])
 
     fd.http_get = fake_get
     fd.fetch_eur_rates = lambda: {"date": "2026-08-01", "base": "EUR", "rates": RATES}
     try:
-        dataset = fd.build_dataset()
+        return fd.build_dataset()
     finally:
         fd.http_get, fd.fetch_eur_rates = original_get, original_rates
+
+
+def test_fuel_source_fallback() -> None:
+    print("== fuel source fallback ==")
+    # The first candidate article exists but carries only navigation tables,
+    # which is exactly how the old fuel page broke.
+    navboxes = "<table class='wikitable'><tr><th>Petroleum industry</th></tr></table>"
+    dataset = build_with({
+        fd.WAGE_URL: WAGE_HTML,
+        fd.FUEL_URLS[0]: navboxes,
+        fd.FUEL_URLS[1]: FUEL_HTML,
+    })
+    check("falls back to the second article", dataset["sources"]["fuel_prices"], fd.FUEL_URLS[1])
+    check("still produces countries", len(dataset["countries"]), 3)
+
+    dataset = build_with({fd.WAGE_URL: WAGE_HTML, fd.FUEL_URLS[1]: FUEL_HTML})
+    check("survives a dead first URL", dataset["sources"]["fuel_prices"], fd.FUEL_URLS[1])
+
+
+def test_end_to_end() -> None:
+    print("== end to end ==")
+    dataset = build_with({fd.WAGE_URL: WAGE_HTML, fd.FUEL_URLS[0]: FUEL_HTML})
+
+    check("source recorded", dataset["sources"]["fuel_prices"], fd.FUEL_URLS[0])
 
     by_name = {c["country"]: c for c in dataset["countries"]}
 
@@ -260,6 +282,7 @@ def main() -> int:
     test_conversions()
     test_country_names()
     test_numbers()
+    test_fuel_source_fallback()
     test_end_to_end()
 
     print()
