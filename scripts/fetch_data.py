@@ -507,8 +507,32 @@ def find_date_column(headers: list[str]) -> int | None:
 
 
 def wikitables(html: str) -> list[Tag]:
+    """Every `wikitable` on the page, falling back to all sizeable tables."""
     soup = BeautifulSoup(html, "html.parser")
-    return [t for t in soup.find_all("table") if "wikitable" in " ".join(t.get("class", []))]
+    tables = soup.find_all("table")
+    tagged = [t for t in tables if "wikitable" in " ".join(t.get("class", []))]
+    if tagged:
+        return tagged
+    log.warning("No table carried the 'wikitable' class; falling back to all tables")
+    return [t for t in tables if len(t.find_all("tr")) > 3]
+
+
+def describe_tables(url: str, tables: list[Tag]) -> None:
+    """Dump every table's headers so a failed run is fixable from CI logs."""
+    log.error("Could not find a usable table on %s. Tables seen:", url)
+    for index, table in enumerate(tables):
+        try:
+            headers, rows = split_header(table_to_grid(table))
+        except Exception as exc:  # noqa: BLE001 - diagnostics must not raise
+            log.error("  [%d] unreadable: %s", index, exc)
+            continue
+        log.error("  [%d] %d rows | headers: %s", index, len(rows),
+                  " | ".join(h or "?" for h in headers[:12]))
+
+
+def log_sample_rows(rows: list[list[str]], count: int = 3) -> None:
+    for row in rows[:count]:
+        log.info("  sample row: %s", " | ".join(cell or "-" for cell in row[:8]))
 
 
 # --------------------------------------------------------------------------
@@ -532,8 +556,9 @@ def monthly_from(value: float, period: str, workweek_hours: float | None) -> flo
 def scrape_minimum_wages(rates: dict[str, float]) -> dict[str, dict]:
     """Country key -> minimum wage record (monthly, EUR)."""
     html = http_get(WAGE_URL).text
+    tables = wikitables(html)
     candidates = []
-    for table in wikitables(html):
+    for table in tables:
         headers, rows = split_header(table_to_grid(table))
         joined = " | ".join(headers).lower()
         if "minimum wage" not in joined and "wage" not in joined:
@@ -544,6 +569,7 @@ def scrape_minimum_wages(rates: dict[str, float]) -> dict[str, dict]:
         candidates.append((len(rows), headers, rows, column))
 
     if not candidates:
+        describe_tables(WAGE_URL, tables)
         raise RuntimeError("no usable minimum wage table found on the Wikipedia page")
 
     _, headers, rows, (wage_index, period, currency) = max(candidates, key=lambda c: c[0])
@@ -557,6 +583,7 @@ def scrape_minimum_wages(rates: dict[str, float]) -> dict[str, dict]:
              period, currency)
     log.info("  workweek column %s", f"[{workweek_index}] {headers[workweek_index]!r}"
              if workweek_index is not None else "none")
+    log_sample_rows(rows)
 
     result: dict[str, dict] = {}
     skipped = 0
@@ -609,8 +636,9 @@ def scrape_minimum_wages(rates: dict[str, float]) -> dict[str, dict]:
 def scrape_fuel_prices(rates: dict[str, float]) -> dict[str, dict]:
     """Country key -> fuel price record (EUR per litre)."""
     html = http_get(FUEL_URL).text
+    tables = wikitables(html)
     candidates = []
-    for table in wikitables(html):
+    for table in tables:
         headers, rows = split_header(table_to_grid(table))
         joined = " | ".join(headers).lower()
         if not re.search(r"gasoline|petrol", joined) or "diesel" not in joined:
@@ -622,6 +650,7 @@ def scrape_fuel_prices(rates: dict[str, float]) -> dict[str, dict]:
         candidates.append((len(rows), headers, rows, petrol, diesel))
 
     if not candidates:
+        describe_tables(FUEL_URL, tables)
         raise RuntimeError("no usable fuel price table found on the Wikipedia page")
 
     _, headers, rows, petrol, diesel = max(candidates, key=lambda c: c[0])
@@ -636,6 +665,7 @@ def scrape_fuel_prices(rates: dict[str, float]) -> dict[str, dict]:
              headers[petrol_index], petrol_currency, petrol_litres)
     log.info("  diesel column  [%d] %r -> %s per %.4f L", diesel_index,
              headers[diesel_index], diesel_currency, diesel_litres)
+    log_sample_rows(rows)
 
     def price(row: list[str], index: int, currency: str, litres: float, name: str,
               label: str) -> float | None:
@@ -718,6 +748,9 @@ def build_dataset() -> dict:
     missing_fuel = sorted(wages[k]["country"] for k in set(wages) - set(fuels))
     log.info("Matched %d countries (%d fuel-only, %d wage-only)",
              len(countries), len(missing_wage), len(missing_fuel))
+    # Unmatched names are usually a missing alias, so make them visible.
+    log.info("  no wage data:  %s", ", ".join(missing_wage[:25]) or "-")
+    log.info("  no fuel price: %s", ", ".join(missing_fuel[:25]) or "-")
 
     petrol_litres = [c["petrol_litres"] for c in countries if c["petrol_litres"]]
     return {

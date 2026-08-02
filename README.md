@@ -93,10 +93,17 @@ python3 -m http.server 8000                    # после отворете htt
 `.github/workflows/update-data.yml` се изпълнява всеки ден в 04:20 UTC: пуска
 тестовете, стартира скрейпъра и комитва `data/fuel_prices.json`, ако има промяна.
 Може да се пусне и ръчно от раздела **Actions → Update fuel price data → Run
-workflow**.
+workflow**, а също тръгва и при промяна в `scripts/`, за да е видим ефектът от
+поправка в скрейпъра веднага.
 
 Cron се изпълнява само от основния клон на репото. Ако работният клон бъде слят
 в друг основен клон, workflow-ът трябва да присъства там.
+
+> **Първоначална настройка:** ако в **Settings → Actions → General** правата са
+> изключени, workflow-ът не се регистрира и `data/fuel_prices.json` няма да се
+> генерира. Изберете *Allow all actions and reusable workflows* и дайте на
+> `GITHUB_TOKEN` право на запис (*Workflow permissions → Read and write*), за да
+> може ботът да комитва обновените данни.
 
 ## Публикуване
 

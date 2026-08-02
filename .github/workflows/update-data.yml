@@ -5,6 +5,12 @@ on:
     # 04:20 UTC every day. GitHub queues cron jobs, so the exact minute drifts.
     - cron: "20 4 * * *"
   workflow_dispatch:
+  # Rebuild immediately when the scraper itself changes, so a fix is visible
+  # without waiting for the next nightly run.
+  push:
+    paths:
+      - "scripts/**"
+      - ".github/workflows/update-data.yml"
 
 permissions:
   contents: write
