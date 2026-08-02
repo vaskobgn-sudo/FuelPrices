@@ -17,7 +17,43 @@ from bs4 import BeautifulSoup  # noqa: E402
 
 import fetch_data as fd  # noqa: E402
 
+# Mirrors the live layout of the minimum wage article: a single header row,
+# no occurrence of the word "wage" anywhere in it.
 WAGE_HTML = """
+<table class="wikitable sortable">
+<tr>
+  <th>Country</th><th>Notes</th>
+  <th>Annual Nominal (US$)</th><th>Annual PPP (Int$)</th>
+  <th>Work week (hours)</th>
+  <th>Hourly Nominal (US$)</th><th>Hourly PPP (Int$)</th>
+  <th>% of GDP per capita</th><th>Effective date</th>
+</tr>
+<tr>
+  <td><span class="flagicon"><img alt="Bulgaria"/></span>
+      <a href="/wiki/Bulgaria">Bulgaria</a><sup class="reference">[12]</sup></td>
+  <td>Gross</td><td>6,624</td><td>13,500</td><td>40</td><td>3.19</td><td>6.49</td>
+  <td>45%</td><td>1 January 2025</td>
+</tr>
+<tr>
+  <td><a href="/wiki/Germany">Germany</a></td>
+  <td></td><td>25,850</td><td>27,600</td><td>38</td><td>13.60</td><td>14.20</td>
+  <td>50%</td><td>1 January 2025</td>
+</tr>
+<tr>
+  <td><a href="/wiki/United_States">United States</a></td>
+  <td>Federal</td><td>15,080</td><td>15,080</td><td>40</td><td>7.25</td><td>7.25</td>
+  <td>18%</td><td>24 July 2009</td>
+</tr>
+<tr>
+  <td><a href="/wiki/Somalia">Somalia</a></td>
+  <td>No minimum wage</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
+  <td>—</td><td>—</td>
+</tr>
+</table>
+"""
+
+# A merged-cell variant, to keep the colspan/rowspan grid expansion covered.
+WAGE_HTML_MERGED = """
 <table class="wikitable sortable">
 <tr>
   <th rowspan="2">Country</th>
@@ -89,20 +125,35 @@ def table(html: str):
 
 
 def test_wage_table() -> None:
-    print("== minimum wage table ==")
+    print("== minimum wage table (live layout) ==")
     headers, rows = fd.split_header(fd.table_to_grid(table(WAGE_HTML)))
 
+    check("headers contain no literal 'wage'", "wage" in " ".join(headers).lower(), False)
+    check("country column", fd.find_country_column(headers), 0)
+    check("workweek column", fd.find_workweek_column(headers), 4)
+    check("effective date column", fd.find_date_column(headers), 8)
+    check("data row count", len(rows), 4)
+
+    picked = fd.pick_wage_column(headers)
+    check("nominal annual column preferred over PPP and hourly", picked, (2, "annual", "USD"))
+    check("GDP percentage column ignored", picked[0] != 7, True)
+    check("country cell cleaned of flag and footnote",
+          fd.canonical_country(rows[0][0]), ("Bulgaria", "bulgaria"))
+    check("thousands separator parsed", fd.parse_number(rows[0][2]), 6624.0)
+    check("dash means no value", fd.parse_number(rows[3][2]), None)
+
+
+def test_wage_table_merged_header() -> None:
+    print("== minimum wage table (merged header) ==")
+    headers, rows = fd.split_header(fd.table_to_grid(table(WAGE_HTML_MERGED)))
+
+    check("merged headers flattened", headers[1], "Annual minimum wage Nominal (US$)")
     check("country column", fd.find_country_column(headers), 0)
     check("workweek column", fd.find_workweek_column(headers), 6)
     check("effective date column", fd.find_date_column(headers), 7)
     check("data row count", len(rows), 4)
-
-    picked = fd.pick_wage_column(headers)
-    check("nominal annual column preferred over PPP", picked, (1, "annual", "USD"))
-    check("country cell cleaned of flag and footnote",
-          fd.canonical_country(rows[0][0]), ("Bulgaria", "bulgaria"))
-    check("thousands separator parsed", fd.parse_number(rows[0][1]), 6624.0)
-    check("dash means no value", fd.parse_number(rows[3][1]), None)
+    check("nominal annual column preferred over PPP",
+          fd.pick_wage_column(headers), (1, "annual", "USD"))
 
 
 def test_fuel_table() -> None:
@@ -204,6 +255,7 @@ def test_end_to_end() -> None:
 
 def main() -> int:
     test_wage_table()
+    test_wage_table_merged_header()
     test_fuel_table()
     test_conversions()
     test_country_names()

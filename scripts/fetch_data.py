@@ -561,7 +561,10 @@ def scrape_minimum_wages(rates: dict[str, float]) -> dict[str, dict]:
     for table in tables:
         headers, rows = split_header(table_to_grid(table))
         joined = " | ".join(headers).lower()
-        if "minimum wage" not in joined and "wage" not in joined:
+        # The live table heads its money columns "Annual Nominal (US$)" without
+        # ever saying "wage", so identify it by shape: a country column plus a
+        # column carrying a pay period.
+        if "country" not in joined:
             continue
         column = pick_wage_column(headers)
         if column is None:
