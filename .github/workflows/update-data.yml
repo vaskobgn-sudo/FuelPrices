@@ -48,11 +48,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet -- data/fuel_prices.json; then
+          # Stage first: `git diff` reports nothing for a file that is still
+          # untracked, which would silently skip the very first dataset.
+          git add data/fuel_prices.json
+          if git diff --cached --quiet -- data/fuel_prices.json; then
             echo "Dataset unchanged - nothing to commit."
             exit 0
           fi
 
-          git add data/fuel_prices.json
           git commit -m "chore(data): refresh fuel prices and minimum wages ($(date -u +%Y-%m-%d))"
           git push
