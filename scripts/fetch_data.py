@@ -23,6 +23,7 @@ import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import quote
 
 import requests
 from bs4 import BeautifulSoup, Tag
@@ -34,6 +35,9 @@ FUEL_URLS = (
     "https://en.wikipedia.org/wiki/List_of_countries_by_gasoline_and_diesel_prices",
     "https://en.wikipedia.org/wiki/Gasoline_and_diesel_usage_and_pricing",
 )
+WIKI_API = "https://en.wikipedia.org/w/api.php"
+FUEL_SEARCH = "list of countries by gasoline and diesel prices"
+
 FRANKFURTER_URLS = (
     "https://api.frankfurter.dev/v1/latest?base=EUR",
     "https://api.frankfurter.app/latest?base=EUR",
@@ -643,6 +647,29 @@ def scrape_minimum_wages(rates: dict[str, float]) -> dict[str, dict]:
     return result
 
 
+def wikipedia_search(query: str, limit: int = 8) -> list[str]:
+    """Article URLs matching `query`, so a renamed article is still found."""
+    url = (f"{WIKI_API}?action=query&list=search&format=json"
+           f"&srlimit={limit}&srsearch={quote(query)}")
+    payload = http_get(url).json()
+    titles = [hit["title"] for hit in payload["query"]["search"]]
+    log.info("Wikipedia search %r -> %s", query, ", ".join(titles) or "nothing")
+    return ["https://en.wikipedia.org/wiki/" + quote(t.replace(" ", "_"))
+            for t in titles]
+
+
+def fuel_candidate_urls() -> list[str]:
+    """Known article URLs first, then whatever a search turns up."""
+    urls = list(FUEL_URLS)
+    try:
+        for url in wikipedia_search(FUEL_SEARCH):
+            if url not in urls:
+                urls.append(url)
+    except Exception as exc:  # noqa: BLE001 - search is a bonus, not a requirement
+        log.warning("Wikipedia search failed: %s", exc)
+    return urls
+
+
 def find_fuel_table(url: str) -> tuple[list[str], list[list[str]], tuple, tuple] | None:
     """Best gasoline/diesel table on a page, or None if the page has none."""
     tables = wikitables(http_get(url).text)
@@ -670,7 +697,7 @@ def scrape_fuel_prices(rates: dict[str, float]) -> tuple[dict[str, dict], str]:
     """Country key -> fuel price record (EUR per litre), plus the source used."""
     found = None
     source_url = FUEL_URLS[0]
-    for url in FUEL_URLS:
+    for url in fuel_candidate_urls():
         try:
             found = find_fuel_table(url)
         except Exception as exc:  # noqa: BLE001 - a dead URL should not end the run

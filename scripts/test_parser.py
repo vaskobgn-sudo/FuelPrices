@@ -8,6 +8,7 @@ real. Run with: python scripts/test_parser.py
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -214,12 +215,21 @@ class FakeResponse:
     def __init__(self, text: str) -> None:
         self.text = text
 
+    def json(self):
+        return json.loads(self.text)
 
-def build_with(pages: dict[str, str]) -> dict:
+
+def search_payload(*titles: str) -> str:
+    return json.dumps({"query": {"search": [{"title": t} for t in titles]}})
+
+
+def build_with(pages: dict[str, str], search_results: tuple[str, ...] = ()) -> dict:
     """Run build_dataset against canned pages instead of the network."""
     original_get, original_rates = fd.http_get, fd.fetch_eur_rates
 
     def fake_get(url: str, **_kwargs):
+        if url.startswith(fd.WIKI_API):
+            return FakeResponse(search_payload(*search_results))
         if url not in pages:
             raise RuntimeError(f"404 for {url}")
         return FakeResponse(pages[url])
@@ -247,6 +257,15 @@ def test_fuel_source_fallback() -> None:
 
     dataset = build_with({fd.WAGE_URL: WAGE_HTML, fd.FUEL_URLS[1]: FUEL_HTML})
     check("survives a dead first URL", dataset["sources"]["fuel_prices"], fd.FUEL_URLS[1])
+
+    # Both known articles gone: the search API has to supply the replacement.
+    renamed = "https://en.wikipedia.org/wiki/Fuel_prices_by_country"
+    dataset = build_with(
+        {fd.WAGE_URL: WAGE_HTML, renamed: FUEL_HTML},
+        search_results=("Fuel prices by country",),
+    )
+    check("finds a renamed article through search",
+          dataset["sources"]["fuel_prices"], renamed)
 
 
 def test_end_to_end() -> None:
