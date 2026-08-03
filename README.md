@@ -20,6 +20,7 @@ data/fuel_prices.json          генерираните данни (обновя
 scripts/fetch_data.py          скрейпърът
 scripts/test_parser.py         офлайн тестове на парсера
 .github/workflows/update-data.yml   дневната автоматизация
+.github/workflows/pages.yml          публикуване на GitHub Pages
 ```
 
 ## Източници на данни
@@ -117,9 +118,17 @@ Cron се изпълнява само от основния клон на реп
 
 ## Публикуване
 
-Проектът е статичен — става за GitHub Pages без промени:
-**Settings → Pages → Source: Deploy from a branch**, и се избира клонът и папката
-`/ (root)`.
+Сайтът се публикува на GitHub Pages автоматично от
+`.github/workflows/pages.yml`. Той сам включва Pages при първото си изпълнение
+(`configure-pages` с `enablement: true`), така че не е нужна ръчна настройка.
+
+Пуска се при промяна в клона, ръчно от **Actions**, и след всяко дневно
+обновяване на данните — комит, направен с `GITHUB_TOKEN`, не стартира workflow,
+затова публикуването се закача за *завършването* на `Update fuel price data`.
+
+Публикува се само това, което сайтът ползва: `index.html`, `assets/` и
+`data/fuel_prices.json`. Ако клонът бъде преименуван или слят другаде, сменете
+името на клона в `on.push.branches`.
 
 ## Интерфейс
 

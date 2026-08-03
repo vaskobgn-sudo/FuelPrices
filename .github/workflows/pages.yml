@@ -1,0 +1,58 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [claude/fuel-price-comparison-app-jx6b7b]
+    paths-ignore:
+      - "README.md"
+  # A push made with GITHUB_TOKEN does not start a workflow, so the daily data
+  # refresh cannot trigger this one directly - react to its completion instead.
+  workflow_run:
+    workflows: ["Update fuel price data"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # Turns Pages on the first time this runs, so the site needs no
+          # manual setup in the repository settings.
+          enablement: true
+
+      - name: Assemble the site
+        run: |
+          set -euo pipefail
+          mkdir -p _site/assets _site/data
+          cp index.html _site/
+          cp -r assets/. _site/assets/
+          cp data/fuel_prices.json _site/data/
+          echo "Publishing:"
+          find _site -type f | sort
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
