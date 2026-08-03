@@ -100,10 +100,25 @@
     });
   }
 
-  function maxLitres(rows) {
-    return rows.reduce(function (max, row) {
-      return Math.max(max, row.petrol_litres || 0, row.diesel_litres || 0);
-    }, 0);
+  /* Reference length for the in-cell bars.
+
+     A handful of countries subsidise fuel so heavily that they sit orders of
+     magnitude above the rest, and scaling to the maximum would flatten every
+     other bar to a dot. Scale to the 90th percentile and let the outliers
+     run full width instead. */
+  function barScale(rows) {
+    var values = [];
+    rows.forEach(function (row) {
+      if (row.petrol_litres) values.push(row.petrol_litres);
+      if (row.diesel_litres) values.push(row.diesel_litres);
+    });
+    if (!values.length) return 0;
+    values.sort(function (a, b) { return a - b; });
+    return values[Math.min(values.length - 1, Math.floor(values.length * 0.9))];
+  }
+
+  function barWidth(value, scale) {
+    return Math.min(100, Math.max(2, (value / scale) * 100)) + "%";
   }
 
   /* ---------- rendering ---------- */
@@ -186,7 +201,7 @@
         if (column.bar && value && scale > 0) {
           var bar = document.createElement("span");
           bar.className = "cell-bar";
-          bar.style.width = Math.max(2, (value / scale) * 100) + "%";
+          bar.style.width = barWidth(value, scale);
           td.appendChild(bar);
         }
 
@@ -262,7 +277,7 @@
           var track = document.createElement("div");
           track.className = "metric-bar";
           var fill = document.createElement("span");
-          fill.style.width = Math.max(2, (value / scale) * 100) + "%";
+          fill.style.width = barWidth(value, scale);
           track.appendChild(fill);
           metric.appendChild(track);
         }
@@ -277,7 +292,7 @@
 
   function render() {
     var rows = visibleRows();
-    var scale = maxLitres(state.rows);
+    var scale = barScale(state.rows);
 
     paintSortIndicators();
     renderTable(rows, scale);
