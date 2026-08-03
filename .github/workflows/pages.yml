@@ -32,11 +32,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure Pages
+        id: pages
+        continue-on-error: true
         uses: actions/configure-pages@v5
         with:
-          # Turns Pages on the first time this runs, so the site needs no
-          # manual setup in the repository settings.
+          # A no-op once Pages is on. Creating it from here needs rights the
+          # workflow token does not have, hence the explanation below.
           enablement: true
+
+      - name: Explain how to switch Pages on
+        if: steps.pages.outcome == 'failure'
+        run: |
+          echo "::error::GitHub Pages is not enabled for this repository, and the"
+          echo "::error::workflow token may not create it."
+          echo "::error::Open Settings -> Pages, set Source to 'GitHub Actions',"
+          echo "::error::then re-run this workflow. No other setup is needed."
+          exit 1
 
       - name: Assemble the site
         run: |

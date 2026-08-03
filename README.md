@@ -118,9 +118,12 @@ Cron се изпълнява само от основния клон на реп
 
 ## Публикуване
 
-Сайтът се публикува на GitHub Pages автоматично от
-`.github/workflows/pages.yml`. Той сам включва Pages при първото си изпълнение
-(`configure-pages` с `enablement: true`), така че не е нужна ръчна настройка.
+Сайтът се публикува на GitHub Pages от `.github/workflows/pages.yml`.
+
+**Еднократна настройка:** отворете **Settings → Pages** и изберете
+*Source: **GitHub Actions***. Токенът на workflow-а няма право сам да създаде
+Pages сайта (`Resource not accessible by integration`), затова този ключ трябва
+да се вдигне ръчно веднъж. След това всичко е автоматично.
 
 Пуска се при промяна в клона, ръчно от **Actions**, и след всяко дневно
 обновяване на данните — комит, направен с `GITHUB_TOKEN`, не стартира workflow,
