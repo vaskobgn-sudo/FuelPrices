@@ -105,10 +105,22 @@ export const text = (page, sel) => page.evaluate(s => {
   const e = document.querySelector(s); return e ? e.innerText.trim() : null;
 }, sel);
 
+/**
+ * Принуждава игровия запис. Без това `readSave` често връща ИНЖЕКТИРАНОТО
+ * състояние, а не текущото: автозаписът е на 5 секунди и рядко се вмества в
+ * прозореца на един тест, а тапването нарочно не записва при всеки удар.
+ * pagehide е закачен за onHide() в играта, тоест води право до save().
+ */
+export const forceSave = page => page.evaluate(() =>
+  window.dispatchEvent(new Event('pagehide')));
+
 /** Числото от елемент като „4.21 млн. лв.“ не става за сметки — четем от записа. */
-export const readSave = page => page.evaluate(() => {
-  try { return JSON.parse(localStorage.getItem('mehanata_save')); } catch { return null; }
-});
+export const readSave = async (page, { fresh = true } = {}) => {
+  if (fresh) { await forceSave(page); await page.waitForTimeout(30); }
+  return page.evaluate(() => {
+    try { return JSON.parse(localStorage.getItem('mehanata_save')); } catch { return null; }
+  });
+};
 
 export const goTab = (page, scr) => page.evaluate(s => {
   document.querySelector('nav button[data-scr="' + s + '"]')

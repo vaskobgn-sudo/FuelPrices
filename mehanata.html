@@ -113,6 +113,16 @@ main{flex:1 1 auto;position:relative;min-height:0;}
 @keyframes fly{0%{opacity:1;transform:translate(-50%,0) scale(.9);}
   25%{transform:translate(-50%,-18px) scale(1.12);}
   100%{opacity:0;transform:translate(-50%,-78px) scale(1);}}
+.float.crit{font-size:26px;color:#fff0c4;
+  text-shadow:0 0 12px var(--amber),0 2px 6px #000;animation-duration:1.15s;}
+
+/* превключвател за покупка на едро */
+.buybar{display:flex;gap:6px;margin:0 0 10px;}
+.buybar button{flex:1 1 0;min-height:48px;border-radius:10px;font-weight:800;font-size:14px;
+  border:1px solid var(--line);background:rgba(36,26,18,.7);color:var(--muted);}
+.buybar button.on{background:linear-gradient(180deg,var(--amber),var(--amber-d));
+  color:#1d1409;border-color:var(--amber-d);}
+.rqty{font-size:11px;color:var(--dim);}
 
 /* ---------- lists ---------- */
 .sechead{font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;
@@ -348,7 +358,7 @@ nav button.hasnew .dot{display:block;}
 <!--                                                                     -->
 <!--  ЗА ДА СЛОЖИШ ИСТИНСКИТЕ ИКОНИ: изтрий всичко между този коментар    -->
 <!--  и "ICONS: END", и постави дословно съдържанието на icons.js в един  -->
-<!--  <script> таг. Нищо друго в файла не се променя.                     -->
+<!--  script таг. Нищо друго в файла не се променя.                       -->
 <!-- =================================================================== -->
 <script>
 (function(){
@@ -635,7 +645,40 @@ var ACHV_BONUS=0.01;         // +1% на постижение
 var EVENT_MIN=180, EVENT_MAX=480, EVENT_LIFE=13;
 var EVENT_BOOST=7, EVENT_BOOST_TIME=60, EVENT_CASH=0.15;
 var SAVE_KEY='mehanata_save';
-var SAVE_VERSION=1;
+var SAVE_VERSION=2;
+var GAME_VERSION='Алфа 0.2';
+var CHANGELOG=[
+  ['Алфа 0.2',[
+    'Покупка на ×10, ×100 и Макс наведнъж',
+    'Прагове на звездите: траен ефект на 5, 10, 25, 50 и 100 звезди',
+    'Постиженията станаха 30',
+    'Ново събитие: автобус спира пред механата',
+    'Критичен тап — 5% шанс за десетократен удар',
+    'Инсталира се на началния екран и работи офлайн',
+    'Трайно хранилище, за да не изчезва записът'
+  ]],
+  ['Алфа 0.1',[
+    '10 поста, 40 ъпгрейда, 15 постижения',
+    'Престиж със звезди, офлайн приход, случайни събития',
+    'Звук, статистика, резервно копие на записа'
+  ]]
+];
+
+// Прагове на звездите — трайни ефекти, които не се купуват и не харчат звезди,
+// за да не влизат в конфликт с пасивните +2% на звезда.
+var STAR_TIERS=[
+  {at:5,   name:'Нощна смяна',      desc:'Офлайн таванът става 12 часа.'},
+  {at:10,  name:'Слух из града',    desc:'Събитията идват два пъти по-често.'},
+  {at:25,  name:'Твърда ръка',      desc:'Тапът дава двойно.'},
+  {at:50,  name:'Дълъг гуляй',      desc:'Бустът от събитие трае 2 минути.'},
+  {at:100, name:'Име в чужбина',    desc:'Офлайн приходът става 100%.'}
+];
+function tierOn(at){return S.stars>=at;}
+function offlineCap(){return tierOn(5)?12*3600:OFFLINE_CAP;}
+function offlineRatio(){return tierOn(100)?1:OFFLINE_RATIO;}
+function eventGap(){return tierOn(10)?0.5:1;}
+function tapMult(){return tierOn(25)?2:1;}
+function boostTime(){return tierOn(50)?120:EVENT_BOOST_TIME;}
 
 var GENS=[
   {id:'rakia',   name:'Ракия',              icon:'rakia',   base:15,          rate:0.1},
@@ -692,7 +735,23 @@ var ACHV=[
   {id:'a12',name:'Дим до небето',     desc:'50 скари с кебапчета.',                  t:function(){return S.gens.skara>=50;}},
   {id:'a13',name:'Пълна механа',      desc:'По поне 1 бройка от всеки пост.',        t:function(){return GENS.every(function(g){return S.gens[g.id]>=1;});}},
   {id:'a14',name:'Първа звезда',      desc:'Продай механата поне веднъж.',           t:function(){return S.prestiges>=1;}},
-  {id:'a15',name:'Късметлия',         desc:'Хвани блуждаеща звезда.',                t:function(){return S.eventsCaught>=1;}}
+  {id:'a15',name:'Късметлия',         desc:'Хвани блуждаеща звезда.',                t:function(){return S.eventsCaught>=1;}},
+  // ---- добавени в Алфа 0.2 ----
+  {id:'a16',name:'Едро търговец',     desc:'Купи на едро поне веднъж.',              t:function(){return S.bulkBuys>=1;}},
+  {id:'a17',name:'Купувач на едро',   desc:'50 покупки на едро.',                    t:function(){return S.bulkBuys>=50;}},
+  {id:'a18',name:'Точен удар',        desc:'Първи критичен тап.',                    t:function(){return S.crits>=1;}},
+  {id:'a19',name:'Тежка ръка',        desc:'100 критични тапвания.',                 t:function(){return S.crits>=100;}},
+  {id:'a20',name:'Нощна смяна',       desc:'Събери 5 звезди.',                       t:function(){return S.stars>=5;}},
+  {id:'a21',name:'Слух из града',     desc:'Събери 10 звезди.',                      t:function(){return S.stars>=10;}},
+  {id:'a22',name:'Твърда ръка',       desc:'Събери 25 звезди.',                      t:function(){return S.stars>=25;}},
+  {id:'a23',name:'Дълъг гуляй',       desc:'Събери 50 звезди.',                      t:function(){return S.stars>=50;}},
+  {id:'a24',name:'Име в чужбина',     desc:'Събери 100 звезди.',                     t:function(){return S.stars>=100;}},
+  {id:'a25',name:'Стар кръчмар',      desc:'Изиграй общо 3 часа.',                   t:function(){return S.playtime>=10800;}},
+  {id:'a26',name:'Легенда на квартала',desc:'Изиграй общо 24 часа.',                 t:function(){return S.playtime>=86400;}},
+  {id:'a27',name:'Пълна изба',        desc:'100 бройки Изба с вино.',                t:function(){return S.gens.izba>=100;}},
+  {id:'a28',name:'Всичко на макс',    desc:'Купи всичките 40 ъпгрейда.',             t:function(){return Object.keys(S.upgrades).length>=UPGRADES.length;}},
+  {id:'a29',name:'Пътнически поток',  desc:'10 уловени звезди.',                     t:function(){return S.eventsCaught>=10;}},
+  {id:'a30',name:'Империя',           desc:'Продай механата 10 пъти.',               t:function(){return S.prestiges>=10;}}
 ];
 
 /* =======================================================================
@@ -710,6 +769,11 @@ function defaults(){
     achv:{}, eventsCaught:0,
     muted:false,
     boostUntil:0,
+    // ---- добавени в SAVE_VERSION 2 ----
+    buyMode:1,            // 1 | 10 | 100 | 0 = Макс
+    crits:0,              // брой критични тапвания
+    freeGifts:0,          // безплатни бройки от събитието с автобуса
+    bulkBuys:0,           // покупки на едро (за постижение)
     savedAt:Date.now()
   };
 }
@@ -719,12 +783,16 @@ var S=defaults();
 function migrate(raw){
   var d=defaults();
   if(!raw||typeof raw!=='object')return d;
-  // version 0/1 -> current: попълваме липсващи полета, пазим познатите
+  // Стратегията е „започни от текущите defaults и вземи каквото разпознаваш“.
+  // Затова запис от версия 1 се зарежда без специален клон: новите полета
+  // (buyMode, crits, freeGifts, bulkBuys) просто остават на стойностите по подразбиране.
   var out=d;
   ['money','stars','prestiges','earnedRun','earnedTotal','taps','playtime',
-   'peakMoney','bestRate','bestStars','eventsCaught','boostUntil','savedAt'].forEach(function(k){
+   'peakMoney','bestRate','bestStars','eventsCaught','boostUntil','savedAt',
+   'crits','freeGifts','bulkBuys'].forEach(function(k){
     if(typeof raw[k]==='number'&&isFinite(raw[k]))out[k]=raw[k];
   });
+  if([1,10,100,0].indexOf(raw.buyMode)>=0)out.buyMode=raw.buyMode;
   if(typeof raw.muted==='boolean')out.muted=raw.muted;
   if(raw.gens)GENS.forEach(function(g){
     var v=raw.gens[g.id];if(typeof v==='number'&&isFinite(v)&&v>=0)out.gens[g.id]=Math.floor(v);});
@@ -774,6 +842,24 @@ function load(){
   S=migrate(raw);
   return true;
 }
+// Молба хранилището да е трайно. Без това браузърът има право да изхвърли
+// localStorage при недостиг на място. Chrome го дава автоматично на
+// инсталирано приложение; при обикновен таб може и да откаже — не е фатално.
+var persistOK=null;
+function askPersist(){
+  if(!navigator.storage||!navigator.storage.persist)return;
+  try{
+    navigator.storage.persisted().then(function(already){
+      if(already){persistOK=true;renderAll();return;}
+      return navigator.storage.persist().then(function(ok){persistOK=!!ok;renderAll();});
+    }).catch(function(){persistOK=null;});
+  }catch(e){persistOK=null;}
+}
+function isStandalone(){
+  return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||
+         navigator.standalone===true;
+}
+
 var warnedStorage=false;
 function warnNoStorage(){
   if(warnedStorage)return;
@@ -813,7 +899,34 @@ function totalRate(){
 function genCost(g,n){                     // цена на следващия екземпляр
   return g.base*Math.pow(COST_GROWTH,(n===undefined?S.gens[g.id]:n));
 }
-function tapValue(){return Math.max(1,0.02*totalRate());}
+/* Цена на n поредни бройки, като първата е при k вече притежавани.
+   Това е геометричен ред: база·r^k·(1 + r + … + r^(n−1)) = база·r^k·(r^n − 1)/(r − 1).
+   Смята се наведнъж, а не в цикъл, за да няма трупане на грешка при n = 100. */
+function bulkCost(g,n,k){
+  if(k===undefined)k=S.gens[g.id];
+  if(n<=0)return 0;
+  var r=COST_GROWTH;
+  return g.base*Math.pow(r,k)*(Math.pow(r,n)-1)/(r-1);
+}
+/* Най-многото бройки, които парите стигат за. Обръщане на реда по n:
+   n = log_r( 1 + пари·(r−1) / (база·r^k) ). Закръгля се надолу и се проверява,
+   защото плаваща запетая на ръба дава ту 9, ту 10. */
+function maxAffordable(g){
+  var r=COST_GROWTH,k=S.gens[g.id];
+  var first=g.base*Math.pow(r,k);
+  if(S.money<first)return 0;
+  var n=Math.floor(Math.log(1+S.money*(r-1)/first)/Math.log(r));
+  if(n<0)n=0;
+  while(n>0&&bulkCost(g,n,k)>S.money)n--;
+  while(bulkCost(g,n+1,k)<=S.money)n++;
+  return n;
+}
+/** Колко бройки ще купи един тап по реда, при текущия режим. */
+function buyQty(g){
+  if(S.buyMode===0)return maxAffordable(g);
+  return S.buyMode;
+}
+function tapValue(){return Math.max(1,0.02*totalRate())*tapMult();}
 function starsFromPrestige(){
   return Math.floor(Math.sqrt(S.earnedRun/PRESTIGE_MIN));
 }
@@ -855,6 +968,7 @@ var SFX={
   unlock:function(){[523,659,784,1047].forEach(function(f,i){tone(f,f,0.13,'triangle',0.11,i*0.07);});},
   achv:function(){[784,988,1175,1568].forEach(function(f,i){tone(f,f,0.16,'sine',0.11,i*0.08);});},
   event:function(){tone(1200,1900,0.18,'sine',0.10);tone(900,1500,0.2,'sine',0.07,0.1);},
+  crit:function(){tone(880,1760,0.09,'square',0.09);tone(1320,1760,0.14,'sine',0.10,0.05);},
   reward:function(){[392,523,659,784,1047].forEach(function(f,i){tone(f,f,0.18,'triangle',0.12,i*0.06);});},
   prestige:function(){[262,330,392,523,659,784].forEach(function(f,i){tone(f,f,0.22,'sine',0.12,i*0.1);});},
   err:function(){tone(180,120,0.09,'square',0.05);}
@@ -933,22 +1047,35 @@ function toast(title,desc,ms){
    7. СТРОЕЖ НА СПИСЪЦИТЕ
    ===================================================================== */
 var genRows={};
+var BUY_MODES=[[1,'×1'],[10,'×10'],[100,'×100'],[0,'Макс']];
 function buildGenList(){
   elGenList.innerHTML='';genRows={};
+  var bar=document.createElement('div');
+  bar.className='buybar';bar.id='buyBar';
+  BUY_MODES.forEach(function(m){
+    var b=document.createElement('button');
+    b.textContent=m[1];b.dataset.mode=m[0];
+    b.addEventListener('click',function(){
+      S.buyMode=m[0];SFX.tap();save();renderAll();
+    });
+    bar.appendChild(b);
+  });
+  elGenList.appendChild(bar);
   GENS.forEach(function(g){
     var b=document.createElement('button');
     b.className='row';b.dataset.id=g.id;
     b.innerHTML=
       '<img class="ic" alt="">'+
       '<div class="rmid"><div class="rname"></div><div class="rsub"></div><div class="rprice"></div></div>'+
-      '<div class="rright"><div class="rcount">0</div><div class="rtag">бр.</div></div>';
+      '<div class="rright"><div class="rcount">0</div><div class="rtag">бр.</div>'+
+      '<div class="rqty"></div></div>';
     b.querySelector('.ic').src=assetFor(g.icon);
     b.querySelector('.rname').textContent=g.name;
     b.style.display='none';
     b.addEventListener('click',function(){buyGen(g);});
     elGenList.appendChild(b);
     genRows[g.id]={el:b,sub:b.querySelector('.rsub'),price:b.querySelector('.rprice'),
-                   cnt:b.querySelector('.rcount')};
+                   cnt:b.querySelector('.rcount'),qty:b.querySelector('.rqty')};
   });
   var hint=document.createElement('div');
   hint.className='hint';hint.id='genHint';
@@ -993,9 +1120,23 @@ function buildStarPane(){
       '<button class="btn" id="btnPrestige">Продай механата</button>'+
       '<p id="pNeed" style="margin-top:8px"></p>'+
     '</div>'+
+    '<div class="sechead">Прагове на звездите</div>'+
+    '<div class="panel" style="padding:10px">'+
+      '<p style="margin-bottom:8px">Отключват се сами и не харчат звезди.</p>'+
+      '<div id="tierList"></div></div>'+
     '<div class="sechead">Постижения (<span id="aCount">0</span>/'+ACHV.length+')</div>'+
     '<div class="panel" style="padding:10px"><p style="margin-bottom:8px">Всяко постижение дава +1% към целия приход завинаги.</p>'+
     '<div id="achvList"></div></div>';
+  var tiers=$('tierList');
+  STAR_TIERS.forEach(function(t){
+    var d=document.createElement('div');
+    d.className='achv';d.dataset.at=t.at;
+    d.innerHTML='<div class="amark"></div><div><div class="an"></div><div class="ad"></div></div>';
+    d.querySelector('.amark').textContent=t.at;
+    d.querySelector('.an').textContent=t.name;
+    d.querySelector('.ad').textContent=t.desc;
+    tiers.appendChild(d);
+  });
   var list=$('achvList');
   ACHV.forEach(function(a){
     var d=document.createElement('div');
@@ -1035,11 +1176,20 @@ function buildSetPane(){
       '<button class="btn ghost" id="btnPaste">Възстанови от текст</button>'+
     '</div>'+
     '<div class="panel">'+
-      '<h2>Механата</h2>'+
-      '<p>Офлайн приход: 50% от прихода, до 8 часа.</p>'+
-      '<p>Един файл, без интернет. Добави я на началния екран за цял екран.</p>'+
+      '<h2>Механата '+GAME_VERSION+'</h2>'+
+      '<p id="setOffline"></p>'+
+      '<p id="setInstall"></p>'+
       (window.MEHANA_ASSETS_PLACEHOLDER?
-        '<p class="warn" style="text-align:left;padding:8px 0 0">Иконите в момента са процедурни заместители — истинският <b>icons.js</b> не можа да бъде свален.</p>':'')+
+        '<p class="warn" style="text-align:left;padding:8px 0 0">Иконите в момента са заместители — истинският <b>icons.js</b> не можа да бъде свален.</p>':'')+
+    '</div>'+
+    '<div class="panel">'+
+      '<h2>Дневник на промените</h2>'+
+      CHANGELOG.map(function(c){
+        return '<p style="color:var(--candle);font-weight:700;margin-top:6px">'+c[0]+'</p>'+
+          '<ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--muted)">'+
+          c[1].map(function(x){return '<li style="margin-bottom:2px">'+x+'</li>';}).join('')+
+          '</ul>';
+      }).join('')+
     '</div>';
   $('btnMute').addEventListener('click',function(){
     S.muted=!S.muted;refreshMute();if(!S.muted)SFX.buy();save();
@@ -1153,14 +1303,21 @@ function renderGens(){
       r.el.classList.add('pop');
       setTimeout(function(){r.el.classList.remove('pop');},520);
     }
-    var cost=genCost(g),n=S.gens[g.id];
+    var n=S.gens[g.id];
+    var qty=buyQty(g);                       // при „Макс“ зависи от парите
+    var shownQty=Math.max(qty,1);            // ако не стигат за нито една, показваме цената на 1
+    var cost=bulkCost(g,shownQty);
     if(r.cnt.textContent!==String(n))r.cnt.textContent=n;
     r.price.textContent=lv(cost);
+    r.qty.textContent=shownQty>1?('за '+shownQty+' бр.'):'';
     r.sub.textContent = n>0
       ? 'Дава '+fmt(genRate(g))+' лв./сек'
       : 'Ще дава '+fmt(g.rate*globalMult())+' лв./сек';
     var poor=S.money<cost;
     r.el.classList.toggle('poor',poor);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#buyBar button'),function(b){
+    b.classList.toggle('on',Number(b.dataset.mode)===S.buyMode);
   });
   var hint=$('genHint');
   if(hint)hint.style.display=GENS.every(function(g){return S.seen[g.id];})?'none':'';
@@ -1212,6 +1369,10 @@ function renderStarPane(){
     var d=$('achvList').querySelector('[data-id="'+a.id+'"]');
     if(d)d.classList.toggle('got',!!S.achv[a.id]);
   });
+  STAR_TIERS.forEach(function(t){
+    var d=$('tierList').querySelector('[data-at="'+t.at+'"]');
+    if(d)d.classList.toggle('got',tierOn(t.at));
+  });
   document.querySelector('nav button[data-scr="star"]').classList.toggle('hasnew',ok);
 }
 
@@ -1219,6 +1380,10 @@ function renderStats(){
   var rows=[
     ['Изиграно време',dur(S.playtime)],
     ['Общо тапвания',S.taps.toLocaleString('bg-BG')],
+    ['Критични тапвания',S.crits.toLocaleString('bg-BG')+
+      (S.taps>0?' ('+(S.crits/S.taps*100).toFixed(1)+'%)':'')],
+    ['Покупки на едро',S.bulkBuys.toLocaleString('bg-BG')],
+    ['Подарени бройки',S.freeGifts.toLocaleString('bg-BG')],
     ['Най-много пари наведнъж',lv(S.peakMoney)],
     ['Най-добър приход/сек',fmt(S.bestRate)+' лв./сек'],
     ['Изкарано в този живот',lv(S.earnedRun)],
@@ -1232,7 +1397,9 @@ function renderStats(){
     ['Уловени звезди',String(S.eventsCaught)],
     ['Купени постове',String(GENS.reduce(function(s,g){return s+S.gens[g.id];},0))],
     ['Купени ъпгрейди',Object.keys(S.upgrades).length+'/'+UPGRADES.length],
-    ['Общ множител','×'+globalMult().toFixed(2)]
+    ['Прагове на звездите',STAR_TIERS.filter(function(t){return tierOn(t.at);}).length+'/'+STAR_TIERS.length],
+    ['Общ множител','×'+globalMult().toFixed(2)],
+    ['Версия',GAME_VERSION]
   ];
   var html='<div class="panel">';
   rows.forEach(function(r){
@@ -1255,9 +1422,22 @@ function renderAll(){
         'директно в Chrome (адрес file://), не през файловия браузър.';
       st.style.color='var(--bad)';
     }else{
-      st.textContent='Паметта работи.';
+      st.textContent='Паметта работи.'+
+        (persistOK===true?' Хранилището е трайно.':
+         persistOK===false?' Браузърът не го е направил трайно — при недостиг на място може да го изчисти.':'');
       st.style.color='var(--ok)';
     }
+  }
+  var so=$('setOffline');
+  if(so)so.textContent='Офлайн приход: '+Math.round(offlineRatio()*100)+'% от прихода, до '+
+    Math.round(offlineCap()/3600)+' часа.';
+  var si=$('setInstall');
+  if(si){
+    si.textContent=isStandalone()
+      ? 'Пуснато е като приложение от началния екран.'
+      : (location.protocol==='https:'||location.hostname==='localhost')
+        ? 'Може да се добави на началния екран: меню ⋮ → Споделяне → Добавяне към началния екран.'
+        : 'За икона на началния екран играта трябва да е отворена по https адрес.';
   }
 }
 function rebuildAll(){
@@ -1270,10 +1450,17 @@ function rebuildAll(){
    9. ДЕЙСТВИЯ
    ===================================================================== */
 function buyGen(g){
-  var cost=genCost(g);
-  if(S.money<cost){SFX.err();vibe(6);return;}
-  S.money-=cost;S.gens[g.id]++;
-  SFX.buy();vibe(12);
+  var n=buyQty(g);
+  if(n<1){SFX.err();vibe(6);return;}
+  var cost=bulkCost(g,n);
+  if(S.money<cost){
+    // при ×10/×100 нарочно не купуваме частично — иначе тапваш „×100“
+    // и получаваш 7 бройки, без да разбереш защо
+    SFX.err();vibe(6);return;
+  }
+  S.money-=cost;S.gens[g.id]+=n;
+  if(n>1)S.bulkBuys++;
+  SFX.buy();vibe(n>1?18:12);
   checkAchv();renderAll();save();     // всяка покупка се записва веднага
 }
 function buyUpg(u){
@@ -1286,14 +1473,19 @@ function buyUpg(u){
   checkAchv();renderAll();save();
 }
 
+var CRIT_CHANCE=0.05, CRIT_MULT=10;
 function doTap(){
   var v=tapValue();
+  var crit=Math.random()<CRIT_CHANCE;
+  if(crit){v*=CRIT_MULT;S.crits++;}
   earn(v);S.taps++;
-  vibe(10);SFX.tap();
+  vibe(crit?[10,30,10]:10);
+  if(crit)SFX.crit();else SFX.tap();
   elTapBtn.classList.add('bump');
   setTimeout(function(){elTapBtn.classList.remove('bump');},80);
   var f=document.createElement('div');
-  f.className='float';f.textContent='+'+lv(v);
+  f.className='float'+(crit?' crit':'');
+  f.textContent=(crit?'КРИТ! +':'+')+lv(v);
   f.style.left=(42+Math.random()*16)+'%';
   elTapZone.appendChild(f);
   setTimeout(function(){if(f.parentNode)f.parentNode.removeChild(f);},900);
@@ -1351,7 +1543,7 @@ function checkAchv(silent){
 var eventTimer=null,eventHideTimer=null;
 function scheduleEvent(){
   clearTimeout(eventTimer);
-  var wait=(EVENT_MIN+Math.random()*(EVENT_MAX-EVENT_MIN))*1000;
+  var wait=(EVENT_MIN+Math.random()*(EVENT_MAX-EVENT_MIN))*1000*eventGap();
   eventTimer=setTimeout(showEvent,wait);
 }
 function showEvent(){
@@ -1371,13 +1563,22 @@ $('eventBtn').addEventListener('pointerdown',function(e){
   clearTimeout(eventHideTimer);
   S.eventsCaught++;
   vibe([15,30,15]);SFX.reward();
-  if(Math.random()<0.5){
-    S.boostUntil=Date.now()+EVENT_BOOST_TIME*1000;
-    toast('Гуляй!','×'+EVENT_BOOST+' приход за '+EVENT_BOOST_TIME+' секунди.',4000);
-  }else{
+  var roll=Math.random();
+  if(roll<0.4){
+    var bt=boostTime();
+    S.boostUntil=Date.now()+bt*1000;
+    toast('Гуляй!','×'+EVENT_BOOST+' приход за '+bt+' секунди.',4000);
+  }else if(roll<0.8){
+    // бакшишът пада на 0, ако току-що си похарчил всичко — оттам долната граница
     var bonus=Math.max(S.money*EVENT_CASH,totalRate()*30);
     earn(bonus);
     toast('Щедър клиент','Даде ти '+lv(bonus)+' бакшиш.',4000);
+  }else{
+    var got=0;
+    GENS.forEach(function(g){if(S.seen[g.id]){S.gens[g.id]++;got++;}});
+    S.freeGifts+=got;
+    toast('Автобус спря пред механата','Получаваш по 1 безплатна бройка от '+got+
+      ' '+plural(got,'пост','поста','поста')+'.',4200);
   }
   checkAchv();renderAll();save();
   scheduleEvent();
@@ -1413,8 +1614,9 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-close]'),function(
    12. ОФЛАЙН ПРОГРЕС
    ===================================================================== */
 function applyAway(seconds,showModal){
-  var capped=Math.min(seconds,OFFLINE_CAP);
-  var gain=totalRate()*capped*OFFLINE_RATIO;
+  var cap=offlineCap(), ratio=offlineRatio();
+  var capped=Math.min(seconds,cap);
+  var gain=totalRate()*capped*ratio;
   if(gain<=0)return 0;
   earn(gain);
   if(showModal){
@@ -1422,8 +1624,8 @@ function applyAway(seconds,showModal){
       title:'Докато те нямаше',
       html:'Механата изкара <em>'+lv(gain)+'</em><br><br>'+
            'Отсъствие: '+dur(seconds)+
-           (seconds>OFFLINE_CAP?' — начислени са само първите 8 часа':'')+
-           '<br>Офлайн се начислява 50% от прихода.'
+           (seconds>cap?' — начислени са само първите '+Math.round(cap/3600)+' часа':'')+
+           '<br>Офлайн се начислява '+Math.round(ratio*100)+'% от прихода.'
     });
   }
   return gain;
@@ -1473,7 +1675,41 @@ window.addEventListener('pagehide',onHide);
 window.addEventListener('blur',function(){save();});
 
 /* =======================================================================
-   15. СТАРТ
+   15. SERVICE WORKER
+   ===================================================================== */
+// Регистрира се САМО при http/https. Отворен от диск (file://) файлът трябва
+// да остане точно толкова самостоятелен, колкото беше — service worker там
+// не работи и опитът само пълни конзолата с грешки.
+function registerSW(){
+  if(!('serviceWorker' in navigator))return;
+  if(location.protocol!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1')return;
+  navigator.serviceWorker.register('sw.js').then(function(reg){
+    reg.addEventListener('updatefound',function(){
+      var sw=reg.installing;
+      if(!sw)return;
+      sw.addEventListener('statechange',function(){
+        // „installed“ при вече контролирана страница означава: чака нова версия
+        if(sw.state==='installed'&&navigator.serviceWorker.controller){
+          modal({
+            title:'Има нова версия',
+            html:'Изтеглена е по-нова „Механа“. Записът ти остава непокътнат.',
+            buttons:[
+              {label:'Презареди сега',fn:function(){
+                save();
+                sw.postMessage({type:'SKIP_WAITING'});
+                setTimeout(function(){location.reload();},150);
+              }},
+              {label:'По-късно',cls:'ghost'}
+            ]
+          });
+        }
+      });
+    });
+  }).catch(function(){/* без service worker играта пак върви */});
+}
+
+/* =======================================================================
+   16. СТАРТ
    ===================================================================== */
 function boot(){
   fitHeight();
@@ -1493,6 +1729,8 @@ function boot(){
   scheduleEvent();
   requestAnimationFrame(loop);
   if(storageOK===false)setTimeout(warnNoStorage,600);
+  askPersist();
+  registerSW();
 
   // Първото докосване „отключва“ звука (политика за автоплей в Chrome)
   var unlockAudio=function(){

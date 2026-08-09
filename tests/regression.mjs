@@ -204,16 +204,20 @@ export default async function run(browser) {
   /* ---------------- запис ---------------- */
   suite('запис');
   await withGame(browser, { money: 1e6, gens: { rakia: 12 } }, async page => {
-    const before = (await readSave(page)).gens.rakia;
+    // ВАЖНО: тук се чете с fresh:false. Ако принудим запис преди четенето,
+    // проверката минава дори когато играта НЕ записва при покупка — тоест
+    // губи всякакъв смисъл.
+    const raw = { fresh: false };
+    const before = (await readSave(page, raw)).gens.rakia;
     await tap(page, '#genList .row[data-id="rakia"]');
     await page.waitForTimeout(250);
-    eq('покупката се записва веднага', (await readSave(page)).gens.rakia, before + 1);
+    eq('покупката се записва веднага', (await readSave(page, raw)).gens.rakia, before + 1);
     await goTab(page, 'upg');
     await page.waitForTimeout(250);
     await tap(page, '#upgList .row[data-id="rakia_0"]');
     await page.waitForTimeout(250);
     eq('ъпгрейдът се записва веднага',
-      Object.keys((await readSave(page)).upgrades).length, 1);
+      Object.keys((await readSave(page, raw)).upgrades).length, 1);
   });
 
   // Недостъпна памет: играта трябва да каже защо, а не да мълчи
