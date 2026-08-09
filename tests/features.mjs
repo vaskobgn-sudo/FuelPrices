@@ -174,6 +174,46 @@ export default async function run(browser) {
     check('няма undefined в записа', !JSON.stringify(s).includes('null'), JSON.stringify(s).slice(0, 120));
   });
 
+  /* ---------------- пренасяне на запис от 0.1 през интерфейса ---------------- */
+  // Пътят, по който играч мести прогреса си на нов адрес: „Копирай записа“
+  // в старата версия, „Възстанови от текст“ в новата. Текстът тук е точно
+  // във формата, който Алфа 0.1 изнася — без полетата, добавени в 0.2.
+  suite('пренасяне на запис от 0.1');
+  const V01_EXPORT = JSON.stringify({
+    version: 1, money: 8123456,
+    gens: { rakia: 73, salata: 55, meze: 31, skara: 18, gaida: 9, izba: 3 },
+    seen: { rakia: true, salata: true, meze: true, skara: true, gaida: true, izba: true, terasa: true },
+    upgrades: { rakia_0: true, rakia_1: true, salata_0: true, meze_0: true, skara_0: true },
+    stars: 14, prestiges: 3, earnedRun: 6.2e6, earnedTotal: 4.4e8,
+    taps: 1877, playtime: 11200, peakMoney: 1.2e7, bestRate: 22000, bestStars: 14,
+    achv: { a1: true, a2: true, a4: true, a5: true, a6: true },
+    eventsCaught: 6, muted: true, boostUntil: 0, savedAt: Date.now()
+  });
+  await withGame(browser, null, async page => {
+    await page.evaluate(() => document.getElementById('btnSettings')
+      .dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    await page.waitForTimeout(250);
+    await tap(page, '#btnPaste');
+    await page.waitForTimeout(250);
+    await page.locator('#saveBox').fill(V01_EXPORT);
+    await tap(page, '#btnPaste');
+    await page.waitForTimeout(300);
+    await page.locator('#mbox .btn').first().click();
+    await page.waitForTimeout(500);
+    const s = await readSave(page);
+    eq('парите се пренасят', Math.round(s.money) >= 8123456, true);
+    eq('звездите се пренасят', s.stars, 14);
+    eq('престижите се пренасят', s.prestiges, 3);
+    eq('тапванията се пренасят', s.taps, 1877);
+    eq('постовете се пренасят', s.gens.rakia, 73);
+    eq('ъпгрейдите се пренасят', Object.keys(s.upgrades).length, 5);
+    eq('изиграното време се пренася', Math.round(s.playtime) >= 11200, true);
+    eq('записът става версия 2', s.version, 2);
+    eq('новите полета получават стойности', s.buyMode, 1);
+    check('екранът показва пренесените пари',
+      /млн\. лв\./.test(await text(page, '#money')), await text(page, '#money'));
+  });
+
   /* ---------------- версия и постижения ---------------- */
   suite('версия и постижения');
   await withGame(browser, {}, async page => {
