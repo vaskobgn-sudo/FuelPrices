@@ -1,13 +1,11 @@
 name: Публикуване на „Механата“
 
+# ВНИМАНИЕ: това repo вече има Pages сайт — приложението за цените на горивата,
+# което се деплойва от клона claude/fuel-price-comparison-app-jx6b7b.
+# Едно repo = един Pages сайт, тоест пуснат ли се, този workflow ЗАМЕНЯ живия
+# сайт. Затова нарочно няма автоматичен спусък: пуска се само на ръка, след
+# като е решено кое от двете живее на адреса.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'mehanata.html'
-      - 'tools/**'
-      - 'tests/**'
-      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
