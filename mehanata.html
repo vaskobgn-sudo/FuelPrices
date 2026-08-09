@@ -52,6 +52,8 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
 
 /* ---------- shell ---------- */
 #app{position:relative;z-index:2;display:flex;flex-direction:column;
+  /* JS презаписва това с точния window.innerHeight — dvh не се поддържа
+     от по-старите Android WebView-та и там списъците спираха да се скролват */
   height:100vh;height:100dvh;}
 
 header{
@@ -85,8 +87,10 @@ header{
 main{flex:1 1 auto;position:relative;min-height:0;}
 .screen{position:absolute;inset:0;display:none;flex-direction:column;min-height:0;}
 .screen.active{display:flex;}
-.scroll{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;
-  overscroll-behavior:contain;padding:8px 10px 14px;}
+.scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  touch-action:pan-y;                 /* изрично, вместо да разчитаме на manipulation */
+  padding:8px 10px 14px;}
 
 /* ---------- tap zone ---------- */
 .tapzone{flex:0 0 auto;display:grid;place-items:center;padding:10px 0 6px;position:relative;}
@@ -330,13 +334,17 @@ nav button.hasnew .dot{display:block;}
 <div id="eventHost"><button id="eventBtn"><img id="eventIco" alt=""></button></div>
 
 <!-- =================================================================== -->
+<!-- =================================================================== -->
 <!-- ============== ICONS: BEGIN MEHANA_ASSETS ========================= -->
 <!--                                                                     -->
 <!--  ЗАМЕСТИТЕЛ. Мрежовият достъп до CloudFront адреса е блокиран от     -->
 <!--  egress политиката на тази сесия, затова истинският icons.js не      -->
-<!--  можа да бъде свален. Кодът долу генерира иконите процедурно на      -->
-<!--  canvas в същата гама и със същите ключове и размери (192x192,       -->
-<!--  fon = 960x540), така че играта е напълно функционална.              -->
+<!--  можа да бъде свален. Иконите тук са чист SVG (data URI) със         -->
+<!--  същите ключове и размери: 192x192, fon = 960x540.                   -->
+<!--                                                                     -->
+<!--  Нарочно БЕЗ canvas и без toDataURL: четенето от canvas е първото    -->
+<!--  нещо, което се чупи в WebView и при отваряне през content:// URI,   -->
+<!--  а SVG data URI се рисува навсякъде.                                 -->
 <!--                                                                     -->
 <!--  ЗА ДА СЛОЖИШ ИСТИНСКИТЕ ИКОНИ: изтрий всичко между този коментар    -->
 <!--  и "ICONS: END", и постави дословно съдържанието на icons.js в един  -->
@@ -344,227 +352,230 @@ nav button.hasnew .dot{display:block;}
 <!-- =================================================================== -->
 <script>
 (function(){
-  var P={bg:'#00000000',wood:'#4a3220',wood2:'#6b4a2a',woodD:'#2a1c11',
-    amber:'#e8a33d',amberD:'#b87a24',gold:'#ffc76b',cream:'#f2e3cb',
-    white:'#f7f1e4',red:'#b8462f',redD:'#8d3220',green:'#6f9c4f',greenD:'#4a6d33',
-    glass:'rgba(255,240,215,.34)',meat:'#8a5a34',meatD:'#6b421f',
-    smoke:'rgba(242,227,203,.20)',sky:'#2b3d4f'};
-
-  function mk(w,h){var c=document.createElement('canvas');c.width=w;c.height=h;return c;}
-  function rr(g,x,y,w,h,r){r=Math.min(r,w/2,h/2);g.beginPath();g.moveTo(x+r,y);
-    g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);
-    g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
-  function fillRR(g,x,y,w,h,r,c){g.fillStyle=c;rr(g,x,y,w,h,r);g.fill();}
-  function circ(g,x,y,r,c){g.fillStyle=c;g.beginPath();g.arc(x,y,r,0,6.2832);g.fill();}
-  function ell(g,x,y,rx,ry,c){g.fillStyle=c;g.beginPath();g.ellipse(x,y,rx,ry,0,0,6.2832);g.fill();}
-  function poly(g,pts,c){g.fillStyle=c;g.beginPath();g.moveTo(pts[0],pts[1]);
-    for(var i=2;i<pts.length;i+=2)g.lineTo(pts[i],pts[i+1]);g.closePath();g.fill();}
-  function starPath(g,cx,cy,ro,ri,n){g.beginPath();
-    for(var i=0;i<n*2;i++){var a=-Math.PI/2+i*Math.PI/n,r=i%2?ri:ro;
-      g[i?'lineTo':'moveTo'](cx+Math.cos(a)*r,cy+Math.sin(a)*r);}g.closePath();}
-  function ico(draw){var c=mk(192,192),g=c.getContext('2d');
-    g.lineJoin='round';g.lineCap='round';draw(g);return c.toDataURL('image/png');}
-  function shadow(g){ell(g,96,172,58,11,'rgba(0,0,0,.30)');}
-
+  function S(body,w,h){
+    w=w||192;h=h||192;
+    return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'" '+
+      'viewBox="0 0 '+w+' '+h+'">'+body+'</svg>');
+  }
+  var SH='<ellipse cx="96" cy="174" rx="56" ry="10" fill="rgba(0,0,0,.28)"/>';
   var A={};
 
-  A.rakia=ico(function(g){shadow(g);
-    poly(g,[26,104,64,104,58,168,32,168],P.glass);
-    poly(g,[30,128,60,128,55,166,35,166],P.amber);
-    fillRR(g,90,52,62,112,16,P.glass);
-    fillRR(g,108,16,26,44,7,P.glass);
-    fillRR(g,105,10,32,14,4,P.redD);
-    fillRR(g,96,84,50,74,12,P.amber);
-    fillRR(g,96,100,50,34,4,P.cream);
-    fillRR(g,102,108,38,5,2,P.amberD);
-    fillRR(g,102,119,26,5,2,P.amberD);
-  });
+  A.rakia=S(SH+
+    '<polygon points="26,104 64,104 58,168 32,168" fill="rgba(255,240,215,.30)"/>'+
+    '<polygon points="30,128 60,128 55,166 35,166" fill="#e8a33d"/>'+
+    '<rect x="105" y="14" width="32" height="16" rx="4" fill="#8d3220"/>'+
+    '<rect x="108" y="28" width="26" height="32" fill="rgba(255,240,215,.30)"/>'+
+    '<rect x="88" y="54" width="66" height="112" rx="16" fill="rgba(255,240,215,.30)"/>'+
+    '<rect x="94" y="86" width="54" height="74" rx="12" fill="#e8a33d"/>'+
+    '<rect x="94" y="100" width="54" height="34" rx="4" fill="#f2e3cb"/>'+
+    '<rect x="101" y="108" width="40" height="5" rx="2" fill="#b87a24"/>'+
+    '<rect x="101" y="119" width="26" height="5" rx="2" fill="#b87a24"/>');
 
-  A.salata=ico(function(g){shadow(g);
-    ell(g,96,96,66,44,P.greenD);
-    ell(g,96,90,60,38,P.green);
-    for(var i=0;i<9;i++){var a=i*0.7+0.3,r=18+((i*13)%30);
-      circ(g,96+Math.cos(a)*r,86+Math.sin(a)*r*0.62,7,i%3==0?P.red:'#7fb05a');}
-    fillRR(g,64,62,66,40,8,P.white);
-    fillRR(g,70,56,54,20,5,'#fffdf6');
-    g.fillStyle=P.woodD;
-    g.beginPath();g.moveTo(30,112);g.quadraticCurveTo(96,168,162,112);
-    g.lineTo(150,112);g.quadraticCurveTo(96,152,42,112);g.closePath();g.fill();
-  });
+  A.salata=S(SH+
+    '<rect x="64" y="58" width="66" height="42" rx="8" fill="#f7f1e4"/>'+
+    '<rect x="70" y="52" width="54" height="20" rx="5" fill="#fffdf6"/>'+
+    '<ellipse cx="96" cy="98" rx="66" ry="44" fill="#4a6d33"/>'+
+    '<ellipse cx="96" cy="92" rx="60" ry="38" fill="#6f9c4f"/>'+
+    '<circle cx="60" cy="86" r="8" fill="#b8462f"/>'+
+    '<circle cx="126" cy="90" r="8" fill="#b8462f"/>'+
+    '<circle cx="88" cy="104" r="7" fill="#7fb05a"/>'+
+    '<circle cx="112" cy="72" r="6" fill="#7fb05a"/>'+
+    '<circle cx="74" cy="66" r="6" fill="#b8462f"/>'+
+    '<rect x="72" y="76" width="46" height="26" rx="5" fill="#fffdf6"/>'+
+    '<path d="M30 114 Q96 170 162 114 L150 114 Q96 154 42 114 Z" fill="#2a1c11"/>');
 
-  A.meze=ico(function(g){shadow(g);
-    ell(g,96,110,74,40,'#d9c9ac');ell(g,96,106,64,33,P.white);
-    circ(g,64,100,17,'#9b3b2c');circ(g,64,100,12,'#c25541');
-    circ(g,92,110,17,'#7d3a26');circ(g,92,110,12,'#a35236');
-    fillRR(g,112,88,34,26,4,'#fffbef');
-    fillRR(g,124,110,30,22,4,'#fff6e0');
-    poly(g,[52,74,84,66,80,84,50,88],'#c9a44a');
-    circ(g,132,74,10,P.greenD);circ(g,148,82,8,P.green);
-  });
+  A.meze=S(SH+
+    '<ellipse cx="96" cy="110" rx="74" ry="40" fill="#d9c9ac"/>'+
+    '<ellipse cx="96" cy="106" rx="64" ry="33" fill="#f7f1e4"/>'+
+    '<polygon points="52,74 84,66 80,84 50,88" fill="#c9a44a"/>'+
+    '<circle cx="64" cy="100" r="17" fill="#9b3b2c"/>'+
+    '<circle cx="64" cy="100" r="12" fill="#c25541"/>'+
+    '<circle cx="92" cy="110" r="17" fill="#7d3a26"/>'+
+    '<circle cx="92" cy="110" r="12" fill="#a35236"/>'+
+    '<rect x="112" y="88" width="34" height="26" rx="4" fill="#fffbef"/>'+
+    '<rect x="122" y="110" width="30" height="22" rx="4" fill="#fff6e0"/>'+
+    '<circle cx="132" cy="74" r="10" fill="#4a6d33"/>'+
+    '<circle cx="148" cy="82" r="8" fill="#6f9c4f"/>');
 
-  A.skara=ico(function(g){shadow(g);
-    for(var s=0;s<4;s++){g.fillStyle=P.smoke;g.beginPath();
-      g.arc(58+s*26,42-((s%2)*10),13,0,6.2832);g.fill();}
-    fillRR(g,22,96,148,20,6,'#3a3a3a');
-    g.strokeStyle='#5c5c5c';g.lineWidth=5;
-    for(var i=0;i<7;i++){g.beginPath();g.moveTo(30+i*22,96);g.lineTo(30+i*22,116);g.stroke();}
-    fillRR(g,30,116,132,18,7,'#2b2b2b');
-    fillRR(g,26,134,140,12,5,'#1e1e1e');
-    circ(g,46,128,5,'#ff7a2f');circ(g,96,130,6,'#ff9d3d');circ(g,146,128,5,'#ff7a2f');
-    for(var k=0;k<4;k++){var y=76+((k%2)*0);
-      fillRR(g,26+k*38,y,32,18,9,P.meat);
-      fillRR(g,30+k*38,y+3,24,7,4,'#a06c40');}
-  });
+  A.skara=S(SH+
+    '<circle cx="58" cy="42" r="13" fill="rgba(242,227,203,.18)"/>'+
+    '<circle cx="84" cy="32" r="13" fill="rgba(242,227,203,.18)"/>'+
+    '<circle cx="110" cy="42" r="13" fill="rgba(242,227,203,.18)"/>'+
+    '<circle cx="136" cy="32" r="13" fill="rgba(242,227,203,.18)"/>'+
+    '<rect x="26" y="74" width="32" height="18" rx="9" fill="#8a5a34"/>'+
+    '<rect x="30" y="77" width="24" height="7" rx="4" fill="#a06c40"/>'+
+    '<rect x="64" y="74" width="32" height="18" rx="9" fill="#8a5a34"/>'+
+    '<rect x="68" y="77" width="24" height="7" rx="4" fill="#a06c40"/>'+
+    '<rect x="102" y="74" width="32" height="18" rx="9" fill="#8a5a34"/>'+
+    '<rect x="106" y="77" width="24" height="7" rx="4" fill="#a06c40"/>'+
+    '<rect x="140" y="74" width="32" height="18" rx="9" fill="#8a5a34"/>'+
+    '<rect x="144" y="77" width="24" height="7" rx="4" fill="#a06c40"/>'+
+    '<rect x="22" y="96" width="148" height="20" rx="6" fill="#3a3a3a"/>'+
+    '<g stroke="#5c5c5c" stroke-width="5">'+
+      '<path d="M30 96v20M52 96v20M74 96v20M96 96v20M118 96v20M140 96v20M162 96v20"/></g>'+
+    '<rect x="30" y="116" width="132" height="18" rx="7" fill="#2b2b2b"/>'+
+    '<rect x="26" y="134" width="140" height="12" rx="5" fill="#1e1e1e"/>'+
+    '<circle cx="46" cy="128" r="5" fill="#ff7a2f"/>'+
+    '<circle cx="96" cy="130" r="6" fill="#ff9d3d"/>'+
+    '<circle cx="146" cy="128" r="5" fill="#ff7a2f"/>');
 
-  A.gaida=ico(function(g){shadow(g);
-    g.strokeStyle='#5a3a1e';g.lineWidth=10;
-    g.beginPath();g.moveTo(120,74);g.lineTo(168,20);g.stroke();
-    fillRR(g,158,10,20,22,6,P.cream);
-    g.strokeStyle='#6b4526';g.lineWidth=9;
-    g.beginPath();g.moveTo(70,84);g.lineTo(24,44);g.stroke();
-    ell(g,96,110,60,48,'#7a4a24');
-    ell(g,88,102,44,34,'#95602f');
-    g.strokeStyle='#5a3a1e';g.lineWidth=8;
-    g.beginPath();g.moveTo(104,150);g.lineTo(150,170);g.stroke();
-    fillRR(g,144,160,26,16,6,P.cream);
-    circ(g,64,92,7,P.cream);circ(g,116,88,6,P.gold);
-    g.strokeStyle=P.gold;g.lineWidth=4;
-    g.beginPath();g.arc(96,110,52,-2.5,-0.6);g.stroke();
-  });
+  A.gaida=S(SH+
+    '<g stroke-linecap="round" fill="none">'+
+      '<path d="M120 74L168 20" stroke="#5a3a1e" stroke-width="10"/>'+
+      '<path d="M70 84L24 44" stroke="#6b4526" stroke-width="9"/>'+
+      '<path d="M104 150L150 170" stroke="#5a3a1e" stroke-width="8"/></g>'+
+    '<rect x="157" y="8" width="21" height="22" rx="6" fill="#f2e3cb"/>'+
+    '<rect x="14" y="34" width="21" height="20" rx="6" fill="#f2e3cb"/>'+
+    '<ellipse cx="96" cy="110" rx="60" ry="48" fill="#7a4a24"/>'+
+    '<ellipse cx="88" cy="102" rx="44" ry="34" fill="#95602f"/>'+
+    '<rect x="142" y="158" width="26" height="16" rx="6" fill="#f2e3cb"/>'+
+    '<circle cx="64" cy="92" r="7" fill="#f2e3cb"/>'+
+    '<circle cx="116" cy="88" r="6" fill="#ffc76b"/>'+
+    '<path d="M52 78Q96 56 140 78" stroke="#ffc76b" stroke-width="4" fill="none"/>');
 
-  A.izba=ico(function(g){shadow(g);
-    fillRR(g,34,36,124,124,34,'#6b4526');
-    fillRR(g,44,36,104,124,26,'#8a5a30');
-    g.fillStyle='#5a3a1e';
-    for(var i=0;i<5;i++){var x=52+i*22;g.fillRect(x,40,4,116);}
-    fillRR(g,28,58,136,16,6,'#3f3f45');
-    fillRR(g,28,120,136,16,6,'#3f3f45');
-    fillRR(g,86,158,20,20,4,'#3f3f45');
-    fillRR(g,90,176,12,10,3,'#2b2b2b');
-    circ(g,96,96,16,'#c98c3c');circ(g,96,96,9,'#7a4a24');
-    ell(g,96,186,26,6,'rgba(184,70,47,.55)');
-  });
+  A.izba=S(SH+
+    '<rect x="34" y="36" width="124" height="124" rx="34" fill="#6b4526"/>'+
+    '<rect x="44" y="36" width="104" height="124" rx="26" fill="#8a5a30"/>'+
+    '<g fill="#5a3a1e">'+
+      '<rect x="52" y="40" width="4" height="116"/><rect x="74" y="40" width="4" height="116"/>'+
+      '<rect x="96" y="40" width="4" height="116"/><rect x="118" y="40" width="4" height="116"/>'+
+      '<rect x="140" y="40" width="4" height="116"/></g>'+
+    '<rect x="28" y="58" width="136" height="16" rx="6" fill="#3f3f45"/>'+
+    '<rect x="28" y="120" width="136" height="16" rx="6" fill="#3f3f45"/>'+
+    '<circle cx="96" cy="96" r="16" fill="#c98c3c"/>'+
+    '<circle cx="96" cy="96" r="9" fill="#7a4a24"/>'+
+    '<rect x="86" y="158" width="20" height="20" rx="4" fill="#3f3f45"/>'+
+    '<rect x="90" y="176" width="12" height="10" rx="3" fill="#2b2b2b"/>');
 
-  A.terasa=ico(function(g){shadow(g);
-    g.fillStyle=P.red;g.beginPath();g.moveTo(96,18);
-    for(var i=0;i<=6;i++){var a=Math.PI+i*Math.PI/6;
-      g.lineTo(96+Math.cos(a)*74,86+Math.sin(a)*10*(i%2?1:-1)+0);}
-    g.lineTo(96,18);g.fill();
-    g.fillStyle=P.cream;g.beginPath();g.moveTo(96,18);
-    g.lineTo(96+Math.cos(Math.PI+Math.PI/6*2)*74,86);
-    g.lineTo(96+Math.cos(Math.PI+Math.PI/6*3)*74,86);g.closePath();g.fill();
-    g.fillStyle=P.cream;g.beginPath();g.moveTo(96,18);
-    g.lineTo(96+Math.cos(Math.PI+Math.PI/6*4)*74,86);
-    g.lineTo(96+Math.cos(Math.PI+Math.PI/6*5)*74,86);g.closePath();g.fill();
-    g.fillStyle='#6b4526';g.fillRect(92,18,8,120);
-    ell(g,96,138,52,14,'#8a5a30');
-    fillRR(g,44,138,104,8,3,'#6b4526');
-    fillRR(g,60,146,8,28,3,'#5a3a1e');
-    fillRR(g,124,146,8,28,3,'#5a3a1e');
-    fillRR(g,84,116,18,26,6,P.glass);
-    fillRR(g,86,124,14,16,4,P.amber);
-  });
+  A.terasa=S(SH+
+    '<path d="M96 16C142 20 170 52 176 88L16 88C22 52 50 20 96 16Z" fill="#b8462f"/>'+
+    '<path d="M96 16C112 30 120 56 122 88L70 88C72 56 80 30 96 16Z" fill="#f2e3cb"/>'+
+    '<rect x="92" y="16" width="8" height="124" fill="#6b4526"/>'+
+    '<ellipse cx="96" cy="140" rx="52" ry="14" fill="#8a5a30"/>'+
+    '<rect x="44" y="140" width="104" height="8" rx="3" fill="#6b4526"/>'+
+    '<rect x="60" y="148" width="8" height="28" rx="3" fill="#5a3a1e"/>'+
+    '<rect x="124" y="148" width="8" height="28" rx="3" fill="#5a3a1e"/>'+
+    '<rect x="83" y="112" width="20" height="28" rx="6" fill="rgba(255,240,215,.34)"/>'+
+    '<rect x="86" y="124" width="14" height="16" rx="4" fill="#e8a33d"/>');
 
-  A.horo=ico(function(g){shadow(g);
-    var cols=[P.red,P.cream,P.amber],cx=96,cy=108;
-    g.strokeStyle=P.gold;g.lineWidth=6;
-    g.beginPath();g.moveTo(30,86);g.quadraticCurveTo(96,58,162,86);g.stroke();
-    for(var i=0;i<3;i++){
-      var x=40+i*56,y=cy;
-      circ(g,x+16,y-46,15,'#e8c79c');
-      fillRR(g,x+4,y-32,24,10,4,i==1?P.woodD:P.red);
-      poly(g,[x+16,y-30,x+34,y+18,x-2,y+18],cols[i]);
-      g.strokeStyle='#e8c79c';g.lineWidth=8;
-      g.beginPath();g.moveTo(x+8,y+18);g.lineTo(x+4,y+50);g.stroke();
-      g.beginPath();g.moveTo(x+24,y+18);g.lineTo(x+30,y+50);g.stroke();
-      g.strokeStyle=P.woodD;g.lineWidth=8;
-      g.beginPath();g.moveTo(x+2,y+52);g.lineTo(x+12,y+52);g.stroke();
-      g.beginPath();g.moveTo(x+24,y+52);g.lineTo(x+34,y+52);g.stroke();
-      g.strokeStyle='#e8c79c';g.lineWidth=7;
-    }
-  });
-
-  A.avtobus=ico(function(g){shadow(g);
-    fillRR(g,14,56,164,84,18,'#c8452f');
-    fillRR(g,14,96,164,10,0,'#f2e3cb');
-    for(var i=0;i<4;i++)fillRR(g,26+i*38,68,30,24,5,'#9fd0e8');
-    for(var i=0;i<4;i++){circ(g,41+i*38,80,7,'#e8c79c');}
-    fillRR(g,150,64,24,28,6,'#bfe2f2');
-    circ(g,52,142,20,'#20201f');circ(g,52,142,9,'#8a8a8a');
-    circ(g,142,142,20,'#20201f');circ(g,142,142,9,'#8a8a8a');
-    circ(g,168,120,7,P.gold);
-    fillRR(g,20,44,80,14,6,P.woodD);
-    fillRR(g,26,47,68,8,4,P.gold);
-  });
-
-  A.mehana=ico(function(g){shadow(g);
-    poly(g,[96,14,178,74,14,74],'#8d3220');
-    poly(g,[96,26,164,72,28,72],'#b8462f');
-    fillRR(g,28,72,136,92,8,'#6b4526');
-    g.fillStyle='#5a3a1e';
-    for(var i=0;i<6;i++)g.fillRect(30,80+i*15,132,3);
-    fillRR(g,78,104,36,60,4,'#3a2515');
-    fillRR(g,82,108,28,52,3,'#4d3120');
-    circ(g,106,136,3.5,P.gold);
-    fillRR(g,38,96,30,28,4,'#ffcf7a');
-    fillRR(g,124,96,30,28,4,'#ffcf7a');
-    g.strokeStyle='#5a3a1e';g.lineWidth=3;
-    g.beginPath();g.moveTo(53,96);g.lineTo(53,124);g.moveTo(38,110);g.lineTo(68,110);g.stroke();
-    g.beginPath();g.moveTo(139,96);g.lineTo(139,124);g.moveTo(124,110);g.lineTo(154,110);g.stroke();
-    fillRR(g,66,46,60,20,5,P.cream);
-    fillRR(g,72,51,48,4,2,'#8d3220');
-    fillRR(g,72,58,32,4,2,'#8d3220');
-  });
-
-  A.zvezda=ico(function(g){
-    var grd=g.createRadialGradient(96,96,10,96,96,92);
-    grd.addColorStop(0,'rgba(255,215,140,.55)');grd.addColorStop(1,'rgba(255,199,107,0)');
-    g.fillStyle=grd;g.fillRect(0,0,192,192);
-    starPath(g,96,96,80,33,5);
-    var lg=g.createLinearGradient(20,20,172,172);
-    lg.addColorStop(0,'#fff0c4');lg.addColorStop(.5,'#ffc76b');lg.addColorStop(1,'#d98f22');
-    g.fillStyle=lg;g.fill();
-    g.strokeStyle='#a76c14';g.lineWidth=4;g.stroke();
-    starPath(g,96,90,34,14,5);g.fillStyle='rgba(255,250,225,.75)';g.fill();
-  });
-
-  A.moneti=ico(function(g){shadow(g);
-    function coin(cx,cy,r){
-      ell(g,cx,cy+7,r,r*0.34,'#a76c14');
-      ell(g,cx,cy,r,r*0.36,'#ffd98a');
-      ell(g,cx,cy,r*0.66,r*0.24,'#e8a33d');
-    }
-    coin(70,150,42);coin(120,132,40);coin(84,112,44);coin(104,84,46);
-    ell(g,104,84,20,8,'#fff2cd');
-    starPath(g,150,44,22,9,5);g.fillStyle='#ffe9b0';g.fill();
-    circ(g,42,58,7,'rgba(255,240,200,.8)');
-    circ(g,164,102,5,'rgba(255,240,200,.7)');
-  });
-
-  // fon: 960x540
   (function(){
-    var c=mk(960,540),g=c.getContext('2d');
-    var lg=g.createLinearGradient(0,0,0,540);
-    lg.addColorStop(0,'#2c1e13');lg.addColorStop(.55,'#1e150d');lg.addColorStop(1,'#120d08');
-    g.fillStyle=lg;g.fillRect(0,0,960,540);
-    g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=2;
-    for(var y=28;y<540;y+=46){g.beginPath();g.moveTo(0,y);g.lineTo(960,y);g.stroke();}
-    g.strokeStyle='rgba(120,86,52,.16)';g.lineWidth=1;
-    for(var i=0;i<70;i++){var yy=(i*77)%540;g.beginPath();
-      g.moveTo((i*137)%960,yy);g.bezierCurveTo((i*137)%960+60,yy+6,(i*137)%960+120,yy-6,(i*137)%960+190,yy);g.stroke();}
-    [[210,150,150],[760,120,170],[480,330,220]].forEach(function(p){
-      var rg=g.createRadialGradient(p[0],p[1],5,p[0],p[1],p[2]);
-      rg.addColorStop(0,'rgba(255,196,110,.34)');rg.addColorStop(1,'rgba(255,196,110,0)');
-      g.fillStyle=rg;g.fillRect(p[0]-p[2],p[1]-p[2],p[2]*2,p[2]*2);});
-    g.fillStyle='rgba(58,38,22,.85)';
-    g.fillRect(0,404,960,136);
-    g.fillStyle='rgba(90,58,30,.5)';
-    for(var x=0;x<960;x+=120)g.fillRect(x,404,4,136);
-    var vg=g.createRadialGradient(480,270,180,480,270,620);
-    vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.75)');
-    g.fillStyle=vg;g.fillRect(0,0,960,540);
-    A.fon=c.toDataURL('image/jpeg',0.82);
+    var b='<path d="M30 86Q96 58 162 86" stroke="#ffc76b" stroke-width="6" fill="none" '+
+          'stroke-linecap="round"/>';
+    var xs=[40,96,152],cols=['#b8462f','#f2e3cb','#e8a33d'];
+    for(var i=0;i<3;i++){
+      var x=xs[i],c=cols[i];
+      b+='<circle cx="'+x+'" cy="62" r="15" fill="#e8c79c"/>'+
+         '<rect x="'+(x-13)+'" y="74" width="26" height="10" rx="4" fill="'+
+           (i===1?'#2a1c11':'#b8462f')+'"/>'+
+         '<polygon points="'+x+',78 '+(x+18)+',126 '+(x-18)+',126" fill="'+c+'"/>'+
+         '<g stroke="#e8c79c" stroke-width="8" stroke-linecap="round">'+
+           '<path d="M'+(x-8)+' 126L'+(x-12)+' 156"/>'+
+           '<path d="M'+(x+8)+' 126L'+(x+12)+' 156"/></g>'+
+         '<g stroke="#2a1c11" stroke-width="8" stroke-linecap="round">'+
+           '<path d="M'+(x-17)+' 160L'+(x-7)+' 160"/>'+
+           '<path d="M'+(x+7)+' 160L'+(x+17)+' 160"/></g>';
+    }
+    A.horo=S(SH+b);
   })();
+
+  A.avtobus=S(SH+
+    '<rect x="20" y="42" width="80" height="14" rx="6" fill="#2a1c11"/>'+
+    '<rect x="26" y="45" width="68" height="8" rx="4" fill="#ffc76b"/>'+
+    '<rect x="14" y="56" width="164" height="84" rx="18" fill="#c8452f"/>'+
+    '<rect x="14" y="96" width="164" height="10" fill="#f2e3cb"/>'+
+    '<g fill="#9fd0e8">'+
+      '<rect x="26" y="68" width="30" height="24" rx="5"/>'+
+      '<rect x="64" y="68" width="30" height="24" rx="5"/>'+
+      '<rect x="102" y="68" width="30" height="24" rx="5"/></g>'+
+    '<rect x="146" y="64" width="28" height="28" rx="6" fill="#bfe2f2"/>'+
+    '<g fill="#e8c79c">'+
+      '<circle cx="41" cy="80" r="7"/><circle cx="79" cy="80" r="7"/>'+
+      '<circle cx="117" cy="80" r="7"/></g>'+
+    '<circle cx="52" cy="142" r="20" fill="#20201f"/>'+
+    '<circle cx="52" cy="142" r="9" fill="#8a8a8a"/>'+
+    '<circle cx="142" cy="142" r="20" fill="#20201f"/>'+
+    '<circle cx="142" cy="142" r="9" fill="#8a8a8a"/>'+
+    '<circle cx="170" cy="118" r="7" fill="#ffc76b"/>');
+
+  A.mehana=S(SH+
+    '<polygon points="96,14 178,74 14,74" fill="#8d3220"/>'+
+    '<polygon points="96,26 164,72 28,72" fill="#b8462f"/>'+
+    '<rect x="28" y="72" width="136" height="92" rx="8" fill="#6b4526"/>'+
+    '<g fill="#5a3a1e">'+
+      '<rect x="30" y="86" width="132" height="3"/><rect x="30" y="101" width="132" height="3"/>'+
+      '<rect x="30" y="116" width="132" height="3"/><rect x="30" y="131" width="132" height="3"/>'+
+      '<rect x="30" y="146" width="132" height="3"/></g>'+
+    '<rect x="38" y="96" width="30" height="28" rx="4" fill="#ffcf7a"/>'+
+    '<rect x="124" y="96" width="30" height="28" rx="4" fill="#ffcf7a"/>'+
+    '<g stroke="#5a3a1e" stroke-width="3">'+
+      '<path d="M53 96v28M38 110h30M139 96v28M124 110h30"/></g>'+
+    '<rect x="78" y="104" width="36" height="60" rx="4" fill="#3a2515"/>'+
+    '<rect x="82" y="108" width="28" height="52" rx="3" fill="#4d3120"/>'+
+    '<circle cx="106" cy="136" r="3.5" fill="#ffc76b"/>'+
+    '<rect x="66" y="44" width="60" height="22" rx="5" fill="#f2e3cb"/>'+
+    '<rect x="72" y="50" width="48" height="4" rx="2" fill="#8d3220"/>'+
+    '<rect x="72" y="58" width="32" height="4" rx="2" fill="#8d3220"/>');
+
+  A.zvezda=S(
+    '<defs>'+
+      '<radialGradient id="zg"><stop offset="0" stop-color="#ffd78c" stop-opacity=".55"/>'+
+      '<stop offset="1" stop-color="#ffc76b" stop-opacity="0"/></radialGradient>'+
+      '<linearGradient id="zl" x1="0" y1="0" x2="1" y2="1">'+
+      '<stop offset="0" stop-color="#fff0c4"/><stop offset=".5" stop-color="#ffc76b"/>'+
+      '<stop offset="1" stop-color="#d98f22"/></linearGradient>'+
+    '</defs>'+
+    '<circle cx="96" cy="96" r="92" fill="url(#zg)"/>'+
+    '<path d="M96 16L115.4 69.3L172.1 71.3L127.4 106.2L143 160.7L96 129L49 160.7'+
+      'L64.6 106.2L19.9 71.3L76.6 69.3Z" fill="url(#zl)" stroke="#a76c14" stroke-width="4" '+
+      'stroke-linejoin="round"/>'+
+    '<path d="M96 64L104.2 86.6L128.1 87.5L109.3 102.2L115.9 125.1L96 111.8L76.1 125.1'+
+      'L82.7 102.2L63.9 87.5L87.8 86.6Z" fill="rgba(255,250,225,.55)"/>');
+
+  A.moneti=S(SH+
+    '<defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0" stop-color="#ffe9b0"/><stop offset="1" stop-color="#e8a33d"/>'+
+    '</linearGradient></defs>'+
+    '<g>'+
+      '<ellipse cx="70" cy="157" rx="42" ry="14" fill="#a76c14"/>'+
+      '<ellipse cx="70" cy="150" rx="42" ry="15" fill="url(#cg)"/>'+
+      '<ellipse cx="120" cy="139" rx="40" ry="14" fill="#a76c14"/>'+
+      '<ellipse cx="120" cy="132" rx="40" ry="14" fill="url(#cg)"/>'+
+      '<ellipse cx="84" cy="119" rx="44" ry="15" fill="#a76c14"/>'+
+      '<ellipse cx="84" cy="112" rx="44" ry="16" fill="url(#cg)"/>'+
+      '<ellipse cx="104" cy="91" rx="46" ry="16" fill="#a76c14"/>'+
+      '<ellipse cx="104" cy="84" rx="46" ry="17" fill="url(#cg)"/>'+
+      '<ellipse cx="104" cy="84" rx="22" ry="8" fill="#fff2cd"/></g>'+
+    '<path d="M150 22L156.5 41.5L176 41.5L160 53L166 72L150 60L134 72L140 53L124 41.5'+
+      'L143.5 41.5Z" fill="#ffe9b0"/>'+
+    '<circle cx="40" cy="56" r="7" fill="rgba(255,240,200,.8)"/>'+
+    '<circle cx="166" cy="104" r="5" fill="rgba(255,240,200,.7)"/>');
+
+  A.fon=S(
+    '<defs>'+
+      '<linearGradient id="f1" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0" stop-color="#2c1e13"/><stop offset=".55" stop-color="#1e150d"/>'+
+        '<stop offset="1" stop-color="#120d08"/></linearGradient>'+
+      '<radialGradient id="f2"><stop offset="0" stop-color="#ffc46e" stop-opacity=".34"/>'+
+        '<stop offset="1" stop-color="#ffc46e" stop-opacity="0"/></radialGradient>'+
+      '<radialGradient id="f3"><stop offset="0" stop-color="#000" stop-opacity="0"/>'+
+        '<stop offset="1" stop-color="#000" stop-opacity=".75"/></radialGradient>'+
+    '</defs>'+
+    '<rect width="960" height="540" fill="url(#f1)"/>'+
+    '<g stroke="rgba(0,0,0,.35)" stroke-width="2">'+
+      '<path d="M0 28h960M0 74h960M0 120h960M0 166h960M0 212h960M0 258h960M0 304h960'+
+      'M0 350h960M0 396h960M0 442h960M0 488h960"/></g>'+
+    '<circle cx="210" cy="150" r="150" fill="url(#f2)"/>'+
+    '<circle cx="760" cy="120" r="170" fill="url(#f2)"/>'+
+    '<circle cx="480" cy="330" r="220" fill="url(#f2)"/>'+
+    '<rect y="404" width="960" height="136" fill="rgba(58,38,22,.85)"/>'+
+    '<g fill="rgba(90,58,30,.5)">'+
+      '<rect x="0" y="404" width="4" height="136"/><rect x="120" y="404" width="4" height="136"/>'+
+      '<rect x="240" y="404" width="4" height="136"/><rect x="360" y="404" width="4" height="136"/>'+
+      '<rect x="480" y="404" width="4" height="136"/><rect x="600" y="404" width="4" height="136"/>'+
+      '<rect x="720" y="404" width="4" height="136"/><rect x="840" y="404" width="4" height="136"/></g>'+
+    '<ellipse cx="480" cy="270" rx="620" ry="620" fill="url(#f3)"/>',
+    960,540);
 
   window.MEHANA_ASSETS=A;
   window.MEHANA_ASSETS_PLACEHOLDER=true;
@@ -725,9 +736,36 @@ function migrate(raw){
   out.version=SAVE_VERSION;
   return out;
 }
+// Ако файлът е отворен през content:// (файлов браузър / WebView), origin-ът е
+// непрозрачен и localStorage хвърля. Досега това се преглъщаше тихо и играта
+// просто не се записваше — затова прогресът се губеше „без причина“.
+var storageOK=null, storageErr='';
+function testStorage(){
+  try{
+    localStorage.setItem('__mehana_test','1');
+    if(localStorage.getItem('__mehana_test')!=='1')throw new Error('четенето не връща записаното');
+    localStorage.removeItem('__mehana_test');
+    storageOK=true;
+  }catch(e){
+    storageOK=false;
+    storageErr=(e&&e.name?e.name:'Грешка')+': '+(e&&e.message?e.message:'');
+  }
+  return storageOK;
+}
 function save(){
   S.savedAt=Date.now();
-  try{localStorage.setItem(SAVE_KEY,JSON.stringify(S));}catch(e){}
+  try{
+    localStorage.setItem(SAVE_KEY,JSON.stringify(S));
+    if(storageOK===false){storageOK=true;renderAll();}
+    return true;
+  }catch(e){
+    if(storageOK!==false){
+      storageOK=false;
+      storageErr=(e&&e.name?e.name:'Грешка')+': '+(e&&e.message?e.message:'');
+      warnNoStorage();
+    }
+    return false;
+  }
 }
 function load(){
   var raw=null;
@@ -735,6 +773,22 @@ function load(){
   if(!raw)return false;
   S=migrate(raw);
   return true;
+}
+var warnedStorage=false;
+function warnNoStorage(){
+  if(warnedStorage)return;
+  warnedStorage=true;
+  modal({
+    title:'Записът не работи',
+    html:'Този браузър не дава на страницата да пише в паметта, затова '+
+         '<em>прогресът няма да се запази</em>.<br><br>'+
+         'Почти винаги причината е, че файлът е отворен през файлов браузър '+
+         '(адрес <em>content://</em>). Отвори го директно в Chrome: '+
+         'Chrome → менюто ⋮ → «Отвори файл» → mehanata.html. Адресът трябва да '+
+         'започва с <em>file://</em>.<br><br>'+
+         'Дотогава можеш да пазиш прогреса ръчно от Настройки → «Копирай записа».'+
+         '<br><br><span style="opacity:.6;font-size:12px">'+storageErr+'</span>'
+  });
 }
 
 /* =======================================================================
@@ -817,6 +871,20 @@ var elMoney=$('money'),elRate=$('rate'),elStarNum=$('starNum'),elBoost=$('boostB
     elStarPane=$('starPane'),elStatsPane=$('statsPane'),elSetPane=$('setPane'),
     elTapBtn=$('tapBtn'),elToasts=$('toasts'),elModalRoot=$('modalRoot'),elMbox=$('mbox'),
     elEventHost=$('eventHost'),elTapZone=document.querySelector('.tapzone');
+
+/* Заключваме височината на приложението към реалния видим viewport.
+   100dvh не се поддържа от по-старите WebView-та (а през файлов браузър
+   играта често се отваря именно във WebView, не в Chrome). Там 100vh е
+   по-висок от екрана, долната част пада под ръба и вътрешните списъци
+   се оказват без какво да скролват. */
+function fitHeight(){
+  var vv=window.visualViewport;
+  var h=(vv&&vv.height)?vv.height:window.innerHeight;
+  if(h>0)$('app').style.height=Math.round(h)+'px';
+}
+window.addEventListener('resize',fitHeight);
+window.addEventListener('orientationchange',function(){setTimeout(fitHeight,150);});
+if(window.visualViewport)window.visualViewport.addEventListener('resize',fitHeight);
 
 function applyAssets(){
   var A=window.MEHANA_ASSETS||{};
@@ -949,10 +1017,22 @@ function buildSetPane(){
     '</div>'+
     '<div class="panel">'+
       '<h2>Запис</h2>'+
-      '<p>Играта се записва автоматично на всеки 10 секунди и при излизане.</p>'+
+      '<p>Автоматично на всеки 5 секунди, при всяка покупка и при излизане от играта.</p>'+
       '<p id="setSaved"></p>'+
+      '<p id="setStorage"></p>'+
       '<button class="btn ghost" id="btnSaveNow">Запиши сега</button>'+
       '<button class="btn danger" id="btnWipe">Изтрий записа</button>'+
+    '</div>'+
+    '<div class="panel">'+
+      '<h2>Резервно копие</h2>'+
+      '<p>Записът живее в конкретния браузър и адрес. Отвориш ли файла по друг '+
+      'начин, започваш начисто — затова тук можеш да го изнесеш като текст.</p>'+
+      '<textarea id="saveBox" readonly rows="3" style="width:100%;resize:vertical;'+
+        'background:rgba(20,16,12,.8);color:var(--muted);border:1px solid var(--line);'+
+        'border-radius:10px;padding:8px;font-size:11px;font-family:monospace;'+
+        '-webkit-user-select:text;user-select:text"></textarea>'+
+      '<button class="btn ghost" id="btnCopy">Копирай записа</button>'+
+      '<button class="btn ghost" id="btnPaste">Възстанови от текст</button>'+
     '</div>'+
     '<div class="panel">'+
       '<h2>Механата</h2>'+
@@ -964,7 +1044,54 @@ function buildSetPane(){
   $('btnMute').addEventListener('click',function(){
     S.muted=!S.muted;refreshMute();if(!S.muted)SFX.buy();save();
   });
-  $('btnSaveNow').addEventListener('click',function(){save();toast('Записано','Прогресът е запазен.',1800);});
+  $('btnSaveNow').addEventListener('click',function(){
+    if(save())toast('Записано','Прогресът е запазен.',1800);
+    else toast('Записът не стана','Виж съобщението за паметта.',2600);
+  });
+  $('btnCopy').addEventListener('click',function(){
+    var box=$('saveBox');
+    box.value=JSON.stringify(S);
+    box.removeAttribute('readonly');
+    box.focus();box.select();box.setSelectionRange(0,box.value.length);
+    var ok=false;
+    try{ok=document.execCommand('copy');}catch(e){}
+    if(!ok&&navigator.clipboard){
+      navigator.clipboard.writeText(box.value).then(function(){
+        toast('Копирано','Записът е в клипборда.',2200);});
+    }
+    box.setAttribute('readonly','readonly');
+    toast(ok?'Копирано':'Маркирано',ok?'Записът е в клипборда.':
+      'Задръж върху текста и избери «Копирай».',3000);
+  });
+  $('btnPaste').addEventListener('click',function(){
+    var box=$('saveBox');
+    box.removeAttribute('readonly');
+    if(!box.dataset.armed){          // първо натискане: разчистваме и чакаме поставяне
+      box.dataset.armed='1';
+      box.value='';
+      box.placeholder='Постави записа тук, после натисни пак «Възстанови».';
+      box.focus();
+      toast('Готово за поставяне','Постави текста и натисни пак бутона.',3200);
+      return;
+    }
+    delete box.dataset.armed;        // второ натискане: четем каквото е поставено
+    var txt=box.value.trim();
+    if(!txt){toast('Празно','Постави текста на записа първо.',2200);return;}
+    var raw=null;
+    try{raw=JSON.parse(txt);}catch(e){}
+    if(!raw||typeof raw!=='object'){toast('Невалиден запис','Текстът не е разпознат.',2800);return;}
+    modal({title:'Възстановяване',
+      html:'Това ще замени текущия прогрес с този от текста. Сигурен ли си?',
+      buttons:[
+        {label:'Да, възстанови',fn:function(){
+          S=migrate(raw);
+          booting=true;checkAchv(true);rebuildAll();booting=false;
+          save();
+          toast('Възстановено','Прогресът е зареден.',2600);
+        }},
+        {label:'Откажи',cls:'ghost'}
+      ]});
+  });
   $('btnWipe').addEventListener('click',function(){
     modal({title:'Изтриване на записа',
       html:'Сигурен ли си? Ще загубиш <em>всичко</em> — пари, постове, ъпгрейди, звезди и постижения. Това не може да се върне.',
@@ -1121,6 +1248,17 @@ function renderAll(){
   if($('sheetStats').classList.contains('on'))renderStats();
   var ss=$('setSaved');
   if(ss)ss.textContent='Последен запис: преди '+dur((Date.now()-S.savedAt)/1000);
+  var st=$('setStorage');
+  if(st){
+    if(storageOK===false){
+      st.textContent='⚠ Паметта е недостъпна — записът НЕ работи. Отвори файла '+
+        'директно в Chrome (адрес file://), не през файловия браузър.';
+      st.style.color='var(--bad)';
+    }else{
+      st.textContent='Паметта работи.';
+      st.style.color='var(--ok)';
+    }
+  }
 }
 function rebuildAll(){
   buildGenList();buildUpgList();buildStarPane();buildSetPane();
@@ -1136,7 +1274,7 @@ function buyGen(g){
   if(S.money<cost){SFX.err();vibe(6);return;}
   S.money-=cost;S.gens[g.id]++;
   SFX.buy();vibe(12);
-  checkAchv();renderAll();
+  checkAchv();renderAll();save();     // всяка покупка се записва веднага
 }
 function buyUpg(u){
   if(S.upgrades[u.id]){return;}
@@ -1145,7 +1283,7 @@ function buyUpg(u){
   S.money-=u.cost;S.upgrades[u.id]=true;
   SFX.unlock();vibe(18);
   toast('Ъпгрейд: '+u.name,'«'+GEN_BY_ID[u.gen].name+'» дава двойно.',3000);
-  checkAchv();renderAll();
+  checkAchv();renderAll();save();
 }
 
 function doTap(){
@@ -1318,7 +1456,7 @@ function loop(){
   uiAcc+=dt;saveAcc+=dt;achvAcc+=dt;
   if(achvAcc>=1){achvAcc=0;checkAchv();}
   if(uiAcc>=0.14){uiAcc=0;renderAll();}
-  if(saveAcc>=10){saveAcc=0;save();}
+  if(saveAcc>=5){saveAcc=0;save();}
 }
 
 /* =======================================================================
@@ -1338,7 +1476,9 @@ window.addEventListener('blur',function(){save();});
    15. СТАРТ
    ===================================================================== */
 function boot(){
+  fitHeight();
   applyAssets();
+  testStorage();
   var had=load();
   checkAchv(true);              // наваксване от записа, без toast-ове
   rebuildAll();
@@ -1352,6 +1492,7 @@ function boot(){
   booting=false;
   scheduleEvent();
   requestAnimationFrame(loop);
+  if(storageOK===false)setTimeout(warnNoStorage,600);
 
   // Първото докосване „отключва“ звука (политика за автоплей в Chrome)
   var unlockAudio=function(){
