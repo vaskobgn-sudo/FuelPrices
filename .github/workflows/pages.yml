@@ -1,0 +1,57 @@
+name: Публикуване на „Механата“
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mehanata.html'
+      - 'tools/**'
+      - 'tests/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Едно публикуване наведнъж; тръгне ли ново, текущото се изчаква, не се къса.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Инсталиране на Playwright
+        run: |
+          npm init -y >/dev/null 2>&1 || true
+          npm i -D playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Балансова симулация
+        run: node tools/balance.js
+      - name: Сглобяване на site/
+        run: |
+          node tools/make-icons.js
+          node tools/build-site.js
+      - name: Всички набори
+        run: node tests/run.mjs
+      - name: Качване на артефакта за Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
