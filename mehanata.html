@@ -1,0 +1,1373 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#14100c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Механата</title>
+<style>
+:root{
+  --bg:#14100c;
+  --wood:#241a12;
+  --wood2:#2f2118;
+  --wood3:#3b2a1c;
+  --line:#4a3524;
+  --amber:#e8a33d;
+  --amber-d:#b87a24;
+  --gold:#ffc76b;
+  --candle:#ffd89a;
+  --text:#f2e3cb;
+  --muted:#a58c6c;
+  --dim:#6f5c46;
+  --ok:#8fbf6a;
+  --bad:#c0603e;
+  --tab-h:60px;
+  --hdr-h:74px;
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;user-select:none;
+  touch-action:manipulation;}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;
+  color:var(--text);
+  font-size:15px;
+  line-height:1.3;
+}
+img{display:block;pointer-events:none;}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
+
+/* ---------- background ---------- */
+#bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;
+    filter:brightness(.28) saturate(.75);}
+#bgTint{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(232,163,61,.10), transparent 60%),
+    linear-gradient(180deg, rgba(20,16,12,.72) 0%, rgba(20,16,12,.86) 45%, rgba(20,16,12,.95) 100%);}
+
+/* ---------- shell ---------- */
+#app{position:relative;z-index:2;display:flex;flex-direction:column;
+  height:100vh;height:100dvh;}
+
+header{
+  flex:0 0 auto;
+  padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;
+  background:linear-gradient(180deg,rgba(36,26,18,.96),rgba(36,26,18,.80));
+  border-bottom:1px solid var(--line);
+  box-shadow:0 4px 14px rgba(0,0,0,.5);
+}
+.hrow1{display:flex;align-items:center;gap:8px;}
+#money{font-size:27px;font-weight:800;letter-spacing:-.5px;color:var(--candle);
+  text-shadow:0 0 14px rgba(232,163,61,.35);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0;}
+.hbtns{display:flex;gap:4px;flex:0 0 auto;}
+.hbtn{width:48px;height:48px;display:grid;place-items:center;border-radius:11px;
+  border:1px solid var(--line);background:rgba(59,42,28,.55);}
+.hbtn svg{width:20px;height:20px;fill:none;stroke:var(--amber);stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;}
+.hbtn:active{background:rgba(232,163,61,.22);}
+.hrow2{display:flex;align-items:center;gap:8px;margin-top:2px;}
+#rate{font-size:13px;color:var(--muted);flex:1 1 auto;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#starBox{display:flex;align-items:center;gap:4px;flex:0 0 auto;
+  font-size:13px;font-weight:700;color:var(--gold);}
+#starBox img{width:18px;height:18px;}
+#boostBar{display:none;margin-top:6px;font-size:12px;font-weight:700;
+  color:#14100c;background:linear-gradient(90deg,var(--gold),var(--amber));
+  border-radius:8px;padding:4px 8px;text-align:center;}
+#boostBar.on{display:block;}
+
+main{flex:1 1 auto;position:relative;min-height:0;}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;min-height:0;}
+.screen.active{display:flex;}
+.scroll{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;padding:8px 10px 14px;}
+
+/* ---------- tap zone ---------- */
+.tapzone{flex:0 0 auto;display:grid;place-items:center;padding:10px 0 6px;position:relative;}
+#tapBtn{width:172px;height:172px;border-radius:50%;position:relative;
+  background:radial-gradient(circle at 38% 32%, #6b4a24 0%, #3b2a1c 62%, #241a12 100%);
+  border:3px solid var(--amber-d);
+  box-shadow:0 0 0 6px rgba(232,163,61,.10), 0 10px 26px rgba(0,0,0,.6),
+             inset 0 2px 10px rgba(255,215,150,.16);
+  display:grid;place-items:center;transition:transform .07s ease-out;}
+#tapBtn img{width:92px;height:92px;margin-bottom:22px;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.55));}
+#tapBtn .cap{position:absolute;bottom:20px;left:0;right:0;text-align:center;
+  font-size:13px;font-weight:800;letter-spacing:.4px;color:var(--candle);
+  text-shadow:0 1px 3px #000;}
+#tapBtn.bump{transform:scale(.93);}
+#tapHint{margin-top:2px;font-size:12px;color:var(--muted);text-align:center;}
+.float{position:absolute;left:50%;top:44%;transform:translateX(-50%);
+  font-size:19px;font-weight:800;color:var(--candle);text-shadow:0 2px 6px #000;
+  pointer-events:none;animation:fly .85s ease-out forwards;white-space:nowrap;z-index:5;}
+@keyframes fly{0%{opacity:1;transform:translate(-50%,0) scale(.9);}
+  25%{transform:translate(-50%,-18px) scale(1.12);}
+  100%{opacity:0;transform:translate(-50%,-78px) scale(1);}}
+
+/* ---------- lists ---------- */
+.sechead{font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;
+  color:var(--dim);margin:10px 2px 6px;}
+.sechead:first-child{margin-top:2px;}
+/* подредба по полезност: изгодните горе, купените долу */
+#upgList{display:flex;flex-direction:column;}
+#upgList .sechead{order:-1;}
+#upgList #upgHint{order:99;}
+
+.row{width:100%;display:flex;align-items:center;gap:10px;text-align:left;
+  background:linear-gradient(180deg,rgba(59,42,28,.72),rgba(36,26,18,.72));
+  border:1px solid var(--line);border-left:3px solid var(--amber-d);
+  border-radius:12px;padding:8px 10px;margin-bottom:8px;min-height:66px;}
+.row:active{transform:scale(.985);}
+.row.locked{opacity:.42;filter:grayscale(.55);border-left-color:#4a3524;}
+.row.poor{opacity:.7;border-left-color:#5b4127;}
+.row.done{opacity:.55;border-left-color:var(--ok);}
+.row img.ic{width:46px;height:46px;flex:0 0 auto;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));}
+.rmid{flex:1 1 auto;min-width:0;}
+.rname{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rsub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rprice{font-size:13px;font-weight:800;color:var(--gold);margin-top:2px;}
+.row.poor .rprice{color:var(--bad);}
+.rright{flex:0 0 auto;text-align:right;min-width:34px;}
+.rcount{font-size:22px;font-weight:800;color:var(--candle);line-height:1;}
+.rtag{font-size:10px;color:var(--dim);}
+.pop{animation:pop .5s cubic-bezier(.2,1.6,.4,1);}
+@keyframes pop{0%{transform:scale(.6) translateY(14px);opacity:0;}
+  60%{transform:scale(1.05) translateY(0);opacity:1;}100%{transform:scale(1);}}
+
+/* ---------- panels ---------- */
+.panel{background:linear-gradient(180deg,rgba(59,42,28,.7),rgba(36,26,18,.7));
+  border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;}
+.panel h2{font-size:16px;margin-bottom:8px;color:var(--candle);}
+.panel p{font-size:13px;color:var(--muted);margin-bottom:6px;}
+.big{font-size:30px;font-weight:800;color:var(--gold);
+  display:flex;align-items:center;gap:8px;justify-content:center;margin:6px 0;}
+.big img{width:30px;height:30px;}
+.btn{display:block;width:100%;min-height:52px;border-radius:12px;font-weight:800;
+  font-size:16px;border:1px solid var(--amber-d);
+  background:linear-gradient(180deg,var(--amber),var(--amber-d));color:#1d1409;
+  box-shadow:0 4px 0 #7d5216;margin-top:8px;}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #7d5216;}
+.btn[disabled]{opacity:.4;background:#4a3524;color:var(--muted);
+  border-color:#4a3524;box-shadow:none;transform:none;}
+.btn.ghost{background:rgba(59,42,28,.6);color:var(--text);border-color:var(--line);
+  box-shadow:0 4px 0 #1c1309;}
+.btn.danger{background:linear-gradient(180deg,#c0603e,#8d3f26);color:#fff;
+  border-color:#8d3f26;box-shadow:0 4px 0 #5c2717;}
+.stat{display:flex;justify-content:space-between;gap:10px;font-size:14px;
+  padding:8px 2px;border-bottom:1px dashed rgba(122,92,62,.35);}
+.stat:last-child{border-bottom:none;}
+.stat b{color:var(--candle);font-weight:700;text-align:right;white-space:nowrap;}
+.stat span{min-width:0;}
+
+.achv{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:11px;
+  border:1px solid var(--line);margin-bottom:7px;background:rgba(36,26,18,.6);}
+.achv.got{border-color:var(--ok);background:rgba(80,110,58,.16);}
+.achv .amark{width:30px;height:30px;flex:0 0 auto;border-radius:50%;display:grid;
+  place-items:center;font-size:15px;font-weight:800;border:1px solid var(--line);
+  background:rgba(20,16,12,.7);color:var(--dim);}
+.achv.got .amark{color:var(--ok);border-color:var(--ok);}
+.achv .an{font-size:14px;font-weight:700;}
+.achv .ad{font-size:11.5px;color:var(--muted);}
+.achv:not(.got) .an{color:var(--dim);}
+
+/* ---------- tabs ---------- */
+nav{flex:0 0 auto;display:flex;
+  border-top:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(36,26,18,.96),rgba(20,16,12,.99));
+  padding-bottom:env(safe-area-inset-bottom);}
+nav button{flex:1 1 0;min-height:var(--tab-h);min-width:48px;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-size:11.5px;font-weight:700;color:var(--dim);position:relative;padding:6px 2px;}
+nav button img,nav button svg{width:24px;height:24px;opacity:.55;}
+nav button svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+nav button.active{color:var(--gold);}
+nav button.active img,nav button.active svg{opacity:1;}
+nav button.active::before{content:"";position:absolute;top:0;left:18%;right:18%;height:3px;
+  border-radius:0 0 3px 3px;background:var(--amber);box-shadow:0 0 10px var(--amber);}
+nav button .dot{position:absolute;top:7px;right:30%;width:8px;height:8px;border-radius:50%;
+  background:var(--ok);box-shadow:0 0 8px var(--ok);display:none;}
+nav button.hasnew .dot{display:block;}
+
+/* ---------- modal ---------- */
+#modalRoot{position:fixed;inset:0;z-index:60;display:none;
+  align-items:center;justify-content:center;padding:18px;
+  background:rgba(8,6,4,.78);backdrop-filter:blur(3px);}
+#modalRoot.on{display:flex;}
+.mbox{width:100%;max-width:340px;max-height:82vh;overflow-y:auto;
+  background:linear-gradient(180deg,#3b2a1c,#241a12);
+  border:1px solid var(--amber-d);border-radius:16px;padding:18px;
+  box-shadow:0 18px 50px rgba(0,0,0,.75);animation:pop .28s ease-out;}
+.mbox h3{font-size:19px;color:var(--candle);margin-bottom:10px;}
+.mbox .mtxt{font-size:14px;color:var(--text);line-height:1.5;}
+.mbox .mtxt em{color:var(--gold);font-style:normal;font-weight:800;}
+
+/* ---------- full overlay screens ---------- */
+.sheet{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;
+  background:linear-gradient(180deg,#1d150e,#14100c);}
+.sheet.on{display:flex;}
+.sheethdr{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:calc(env(safe-area-inset-top) + 10px) 12px 10px;
+  border-bottom:1px solid var(--line);background:rgba(36,26,18,.9);}
+.sheethdr h2{flex:1 1 auto;font-size:18px;color:var(--candle);}
+.xbtn{width:48px;height:48px;display:grid;place-items:center;border-radius:12px;
+  border:1px solid var(--line);font-size:22px;color:var(--amber);}
+.sheet .scroll{padding:12px 12px calc(env(safe-area-inset-bottom) + 20px);}
+
+/* ---------- toasts ---------- */
+#toasts{position:fixed;left:10px;right:10px;z-index:70;
+  top:calc(env(safe-area-inset-top) + 82px);
+  display:flex;flex-direction:column;gap:7px;pointer-events:none;align-items:center;}
+.toast{max-width:340px;width:100%;
+  background:linear-gradient(180deg,#4a3520,#2b1f14);
+  border:1px solid var(--amber);border-left:4px solid var(--gold);
+  border-radius:11px;padding:7px 11px;box-shadow:0 8px 22px rgba(0,0,0,.6);
+  animation:tin .3s ease-out;opacity:.97;}
+.toast.out{animation:tout .35s ease-in forwards;}
+.toast .tt{font-size:13px;font-weight:800;color:var(--gold);line-height:1.25;}
+.toast .td{font-size:11.5px;color:var(--text);line-height:1.25;}
+@keyframes tin{from{opacity:0;transform:translateY(-18px);}to{opacity:1;transform:none;}}
+@keyframes tout{to{opacity:0;transform:translateY(-14px);}}
+
+/* ---------- random event ---------- */
+#eventHost{position:fixed;right:6px;top:38%;z-index:55;display:none;}
+#eventHost.on{display:block;}
+#eventBtn{width:74px;height:74px;display:grid;place-items:center;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,199,107,.32),rgba(255,199,107,0) 70%);
+  animation:wob 1.1s ease-in-out infinite;}
+#eventBtn img{width:60px;height:60px;filter:drop-shadow(0 0 12px rgba(255,199,107,.95));}
+@keyframes wob{0%,100%{transform:scale(1) rotate(-7deg);}50%{transform:scale(1.14) rotate(7deg);}}
+
+.hint{font-size:12px;color:var(--dim);text-align:center;padding:14px 6px;}
+.warn{font-size:12px;color:var(--bad);text-align:center;padding:10px 6px;line-height:1.5;}
+@media (max-height:620px){
+  #tapBtn{width:150px;height:150px;}
+  #tapBtn img{width:78px;height:78px;margin-bottom:20px;}
+  #money{font-size:24px;}
+}
+</style>
+</head>
+<body>
+
+<div id="bg"></div>
+<div id="bgTint"></div>
+
+<div id="app">
+
+  <header>
+    <div class="hrow1">
+      <div id="money">0 лв.</div>
+      <div class="hbtns">
+        <button class="hbtn" id="btnStats" aria-label="Статистика">
+          <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        </button>
+        <button class="hbtn" id="btnSettings" aria-label="Настройки">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v3M12 18.4v3M2.6 12h3M18.4 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="hrow2">
+      <div id="rate">0 лв./сек</div>
+      <div id="starBox"><img id="starIco" alt=""><span id="starNum">0</span></div>
+    </div>
+    <div id="boostBar"></div>
+  </header>
+
+  <main>
+    <!-- ===== Механа ===== -->
+    <section class="screen active" id="scr-mehana">
+      <div class="tapzone">
+        <button id="tapBtn" aria-label="Налей ракия">
+          <img id="tapIco" alt="">
+          <span class="cap">НАЛЕЙ РАКИЯ</span>
+        </button>
+      </div>
+      <div id="tapHint">+0 лв. на тап</div>
+      <div class="scroll" id="genList"></div>
+    </section>
+
+    <!-- ===== Ъпгрейди ===== -->
+    <section class="screen" id="scr-upg">
+      <div class="scroll" id="upgList"></div>
+    </section>
+
+    <!-- ===== Звезди ===== -->
+    <section class="screen" id="scr-star">
+      <div class="scroll" id="starPane"></div>
+    </section>
+  </main>
+
+  <nav>
+    <button class="tab active" data-scr="mehana"><img id="tabIcoM" alt="">Механа</button>
+    <button class="tab" data-scr="upg">
+      <svg viewBox="0 0 24 24"><path d="M12 20V5M6 11l6-6 6 6"/></svg>Ъпгрейди
+      <span class="dot"></span>
+    </button>
+    <button class="tab" data-scr="star"><img id="tabIcoS" alt="">Звезди<span class="dot"></span></button>
+  </nav>
+</div>
+
+<!-- ===== Статистика ===== -->
+<div class="sheet" id="sheetStats">
+  <div class="sheethdr"><h2>Статистика</h2><button class="xbtn" data-close="sheetStats">✕</button></div>
+  <div class="scroll" id="statsPane"></div>
+</div>
+
+<!-- ===== Настройки ===== -->
+<div class="sheet" id="sheetSet">
+  <div class="sheethdr"><h2>Настройки</h2><button class="xbtn" data-close="sheetSet">✕</button></div>
+  <div class="scroll" id="setPane"></div>
+</div>
+
+<div id="toasts"></div>
+<div id="modalRoot"><div class="mbox" id="mbox"></div></div>
+<div id="eventHost"><button id="eventBtn"><img id="eventIco" alt=""></button></div>
+
+<!-- =================================================================== -->
+<!-- ============== ICONS: BEGIN MEHANA_ASSETS ========================= -->
+<!--                                                                     -->
+<!--  ЗАМЕСТИТЕЛ. Мрежовият достъп до CloudFront адреса е блокиран от     -->
+<!--  egress политиката на тази сесия, затова истинският icons.js не      -->
+<!--  можа да бъде свален. Кодът долу генерира иконите процедурно на      -->
+<!--  canvas в същата гама и със същите ключове и размери (192x192,       -->
+<!--  fon = 960x540), така че играта е напълно функционална.              -->
+<!--                                                                     -->
+<!--  ЗА ДА СЛОЖИШ ИСТИНСКИТЕ ИКОНИ: изтрий всичко между този коментар    -->
+<!--  и "ICONS: END", и постави дословно съдържанието на icons.js в един  -->
+<!--  <script> таг. Нищо друго в файла не се променя.                     -->
+<!-- =================================================================== -->
+<script>
+(function(){
+  var P={bg:'#00000000',wood:'#4a3220',wood2:'#6b4a2a',woodD:'#2a1c11',
+    amber:'#e8a33d',amberD:'#b87a24',gold:'#ffc76b',cream:'#f2e3cb',
+    white:'#f7f1e4',red:'#b8462f',redD:'#8d3220',green:'#6f9c4f',greenD:'#4a6d33',
+    glass:'rgba(255,240,215,.34)',meat:'#8a5a34',meatD:'#6b421f',
+    smoke:'rgba(242,227,203,.20)',sky:'#2b3d4f'};
+
+  function mk(w,h){var c=document.createElement('canvas');c.width=w;c.height=h;return c;}
+  function rr(g,x,y,w,h,r){r=Math.min(r,w/2,h/2);g.beginPath();g.moveTo(x+r,y);
+    g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);
+    g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
+  function fillRR(g,x,y,w,h,r,c){g.fillStyle=c;rr(g,x,y,w,h,r);g.fill();}
+  function circ(g,x,y,r,c){g.fillStyle=c;g.beginPath();g.arc(x,y,r,0,6.2832);g.fill();}
+  function ell(g,x,y,rx,ry,c){g.fillStyle=c;g.beginPath();g.ellipse(x,y,rx,ry,0,0,6.2832);g.fill();}
+  function poly(g,pts,c){g.fillStyle=c;g.beginPath();g.moveTo(pts[0],pts[1]);
+    for(var i=2;i<pts.length;i+=2)g.lineTo(pts[i],pts[i+1]);g.closePath();g.fill();}
+  function starPath(g,cx,cy,ro,ri,n){g.beginPath();
+    for(var i=0;i<n*2;i++){var a=-Math.PI/2+i*Math.PI/n,r=i%2?ri:ro;
+      g[i?'lineTo':'moveTo'](cx+Math.cos(a)*r,cy+Math.sin(a)*r);}g.closePath();}
+  function ico(draw){var c=mk(192,192),g=c.getContext('2d');
+    g.lineJoin='round';g.lineCap='round';draw(g);return c.toDataURL('image/png');}
+  function shadow(g){ell(g,96,172,58,11,'rgba(0,0,0,.30)');}
+
+  var A={};
+
+  A.rakia=ico(function(g){shadow(g);
+    poly(g,[26,104,64,104,58,168,32,168],P.glass);
+    poly(g,[30,128,60,128,55,166,35,166],P.amber);
+    fillRR(g,90,52,62,112,16,P.glass);
+    fillRR(g,108,16,26,44,7,P.glass);
+    fillRR(g,105,10,32,14,4,P.redD);
+    fillRR(g,96,84,50,74,12,P.amber);
+    fillRR(g,96,100,50,34,4,P.cream);
+    fillRR(g,102,108,38,5,2,P.amberD);
+    fillRR(g,102,119,26,5,2,P.amberD);
+  });
+
+  A.salata=ico(function(g){shadow(g);
+    ell(g,96,96,66,44,P.greenD);
+    ell(g,96,90,60,38,P.green);
+    for(var i=0;i<9;i++){var a=i*0.7+0.3,r=18+((i*13)%30);
+      circ(g,96+Math.cos(a)*r,86+Math.sin(a)*r*0.62,7,i%3==0?P.red:'#7fb05a');}
+    fillRR(g,64,62,66,40,8,P.white);
+    fillRR(g,70,56,54,20,5,'#fffdf6');
+    g.fillStyle=P.woodD;
+    g.beginPath();g.moveTo(30,112);g.quadraticCurveTo(96,168,162,112);
+    g.lineTo(150,112);g.quadraticCurveTo(96,152,42,112);g.closePath();g.fill();
+  });
+
+  A.meze=ico(function(g){shadow(g);
+    ell(g,96,110,74,40,'#d9c9ac');ell(g,96,106,64,33,P.white);
+    circ(g,64,100,17,'#9b3b2c');circ(g,64,100,12,'#c25541');
+    circ(g,92,110,17,'#7d3a26');circ(g,92,110,12,'#a35236');
+    fillRR(g,112,88,34,26,4,'#fffbef');
+    fillRR(g,124,110,30,22,4,'#fff6e0');
+    poly(g,[52,74,84,66,80,84,50,88],'#c9a44a');
+    circ(g,132,74,10,P.greenD);circ(g,148,82,8,P.green);
+  });
+
+  A.skara=ico(function(g){shadow(g);
+    for(var s=0;s<4;s++){g.fillStyle=P.smoke;g.beginPath();
+      g.arc(58+s*26,42-((s%2)*10),13,0,6.2832);g.fill();}
+    fillRR(g,22,96,148,20,6,'#3a3a3a');
+    g.strokeStyle='#5c5c5c';g.lineWidth=5;
+    for(var i=0;i<7;i++){g.beginPath();g.moveTo(30+i*22,96);g.lineTo(30+i*22,116);g.stroke();}
+    fillRR(g,30,116,132,18,7,'#2b2b2b');
+    fillRR(g,26,134,140,12,5,'#1e1e1e');
+    circ(g,46,128,5,'#ff7a2f');circ(g,96,130,6,'#ff9d3d');circ(g,146,128,5,'#ff7a2f');
+    for(var k=0;k<4;k++){var y=76+((k%2)*0);
+      fillRR(g,26+k*38,y,32,18,9,P.meat);
+      fillRR(g,30+k*38,y+3,24,7,4,'#a06c40');}
+  });
+
+  A.gaida=ico(function(g){shadow(g);
+    g.strokeStyle='#5a3a1e';g.lineWidth=10;
+    g.beginPath();g.moveTo(120,74);g.lineTo(168,20);g.stroke();
+    fillRR(g,158,10,20,22,6,P.cream);
+    g.strokeStyle='#6b4526';g.lineWidth=9;
+    g.beginPath();g.moveTo(70,84);g.lineTo(24,44);g.stroke();
+    ell(g,96,110,60,48,'#7a4a24');
+    ell(g,88,102,44,34,'#95602f');
+    g.strokeStyle='#5a3a1e';g.lineWidth=8;
+    g.beginPath();g.moveTo(104,150);g.lineTo(150,170);g.stroke();
+    fillRR(g,144,160,26,16,6,P.cream);
+    circ(g,64,92,7,P.cream);circ(g,116,88,6,P.gold);
+    g.strokeStyle=P.gold;g.lineWidth=4;
+    g.beginPath();g.arc(96,110,52,-2.5,-0.6);g.stroke();
+  });
+
+  A.izba=ico(function(g){shadow(g);
+    fillRR(g,34,36,124,124,34,'#6b4526');
+    fillRR(g,44,36,104,124,26,'#8a5a30');
+    g.fillStyle='#5a3a1e';
+    for(var i=0;i<5;i++){var x=52+i*22;g.fillRect(x,40,4,116);}
+    fillRR(g,28,58,136,16,6,'#3f3f45');
+    fillRR(g,28,120,136,16,6,'#3f3f45');
+    fillRR(g,86,158,20,20,4,'#3f3f45');
+    fillRR(g,90,176,12,10,3,'#2b2b2b');
+    circ(g,96,96,16,'#c98c3c');circ(g,96,96,9,'#7a4a24');
+    ell(g,96,186,26,6,'rgba(184,70,47,.55)');
+  });
+
+  A.terasa=ico(function(g){shadow(g);
+    g.fillStyle=P.red;g.beginPath();g.moveTo(96,18);
+    for(var i=0;i<=6;i++){var a=Math.PI+i*Math.PI/6;
+      g.lineTo(96+Math.cos(a)*74,86+Math.sin(a)*10*(i%2?1:-1)+0);}
+    g.lineTo(96,18);g.fill();
+    g.fillStyle=P.cream;g.beginPath();g.moveTo(96,18);
+    g.lineTo(96+Math.cos(Math.PI+Math.PI/6*2)*74,86);
+    g.lineTo(96+Math.cos(Math.PI+Math.PI/6*3)*74,86);g.closePath();g.fill();
+    g.fillStyle=P.cream;g.beginPath();g.moveTo(96,18);
+    g.lineTo(96+Math.cos(Math.PI+Math.PI/6*4)*74,86);
+    g.lineTo(96+Math.cos(Math.PI+Math.PI/6*5)*74,86);g.closePath();g.fill();
+    g.fillStyle='#6b4526';g.fillRect(92,18,8,120);
+    ell(g,96,138,52,14,'#8a5a30');
+    fillRR(g,44,138,104,8,3,'#6b4526');
+    fillRR(g,60,146,8,28,3,'#5a3a1e');
+    fillRR(g,124,146,8,28,3,'#5a3a1e');
+    fillRR(g,84,116,18,26,6,P.glass);
+    fillRR(g,86,124,14,16,4,P.amber);
+  });
+
+  A.horo=ico(function(g){shadow(g);
+    var cols=[P.red,P.cream,P.amber],cx=96,cy=108;
+    g.strokeStyle=P.gold;g.lineWidth=6;
+    g.beginPath();g.moveTo(30,86);g.quadraticCurveTo(96,58,162,86);g.stroke();
+    for(var i=0;i<3;i++){
+      var x=40+i*56,y=cy;
+      circ(g,x+16,y-46,15,'#e8c79c');
+      fillRR(g,x+4,y-32,24,10,4,i==1?P.woodD:P.red);
+      poly(g,[x+16,y-30,x+34,y+18,x-2,y+18],cols[i]);
+      g.strokeStyle='#e8c79c';g.lineWidth=8;
+      g.beginPath();g.moveTo(x+8,y+18);g.lineTo(x+4,y+50);g.stroke();
+      g.beginPath();g.moveTo(x+24,y+18);g.lineTo(x+30,y+50);g.stroke();
+      g.strokeStyle=P.woodD;g.lineWidth=8;
+      g.beginPath();g.moveTo(x+2,y+52);g.lineTo(x+12,y+52);g.stroke();
+      g.beginPath();g.moveTo(x+24,y+52);g.lineTo(x+34,y+52);g.stroke();
+      g.strokeStyle='#e8c79c';g.lineWidth=7;
+    }
+  });
+
+  A.avtobus=ico(function(g){shadow(g);
+    fillRR(g,14,56,164,84,18,'#c8452f');
+    fillRR(g,14,96,164,10,0,'#f2e3cb');
+    for(var i=0;i<4;i++)fillRR(g,26+i*38,68,30,24,5,'#9fd0e8');
+    for(var i=0;i<4;i++){circ(g,41+i*38,80,7,'#e8c79c');}
+    fillRR(g,150,64,24,28,6,'#bfe2f2');
+    circ(g,52,142,20,'#20201f');circ(g,52,142,9,'#8a8a8a');
+    circ(g,142,142,20,'#20201f');circ(g,142,142,9,'#8a8a8a');
+    circ(g,168,120,7,P.gold);
+    fillRR(g,20,44,80,14,6,P.woodD);
+    fillRR(g,26,47,68,8,4,P.gold);
+  });
+
+  A.mehana=ico(function(g){shadow(g);
+    poly(g,[96,14,178,74,14,74],'#8d3220');
+    poly(g,[96,26,164,72,28,72],'#b8462f');
+    fillRR(g,28,72,136,92,8,'#6b4526');
+    g.fillStyle='#5a3a1e';
+    for(var i=0;i<6;i++)g.fillRect(30,80+i*15,132,3);
+    fillRR(g,78,104,36,60,4,'#3a2515');
+    fillRR(g,82,108,28,52,3,'#4d3120');
+    circ(g,106,136,3.5,P.gold);
+    fillRR(g,38,96,30,28,4,'#ffcf7a');
+    fillRR(g,124,96,30,28,4,'#ffcf7a');
+    g.strokeStyle='#5a3a1e';g.lineWidth=3;
+    g.beginPath();g.moveTo(53,96);g.lineTo(53,124);g.moveTo(38,110);g.lineTo(68,110);g.stroke();
+    g.beginPath();g.moveTo(139,96);g.lineTo(139,124);g.moveTo(124,110);g.lineTo(154,110);g.stroke();
+    fillRR(g,66,46,60,20,5,P.cream);
+    fillRR(g,72,51,48,4,2,'#8d3220');
+    fillRR(g,72,58,32,4,2,'#8d3220');
+  });
+
+  A.zvezda=ico(function(g){
+    var grd=g.createRadialGradient(96,96,10,96,96,92);
+    grd.addColorStop(0,'rgba(255,215,140,.55)');grd.addColorStop(1,'rgba(255,199,107,0)');
+    g.fillStyle=grd;g.fillRect(0,0,192,192);
+    starPath(g,96,96,80,33,5);
+    var lg=g.createLinearGradient(20,20,172,172);
+    lg.addColorStop(0,'#fff0c4');lg.addColorStop(.5,'#ffc76b');lg.addColorStop(1,'#d98f22');
+    g.fillStyle=lg;g.fill();
+    g.strokeStyle='#a76c14';g.lineWidth=4;g.stroke();
+    starPath(g,96,90,34,14,5);g.fillStyle='rgba(255,250,225,.75)';g.fill();
+  });
+
+  A.moneti=ico(function(g){shadow(g);
+    function coin(cx,cy,r){
+      ell(g,cx,cy+7,r,r*0.34,'#a76c14');
+      ell(g,cx,cy,r,r*0.36,'#ffd98a');
+      ell(g,cx,cy,r*0.66,r*0.24,'#e8a33d');
+    }
+    coin(70,150,42);coin(120,132,40);coin(84,112,44);coin(104,84,46);
+    ell(g,104,84,20,8,'#fff2cd');
+    starPath(g,150,44,22,9,5);g.fillStyle='#ffe9b0';g.fill();
+    circ(g,42,58,7,'rgba(255,240,200,.8)');
+    circ(g,164,102,5,'rgba(255,240,200,.7)');
+  });
+
+  // fon: 960x540
+  (function(){
+    var c=mk(960,540),g=c.getContext('2d');
+    var lg=g.createLinearGradient(0,0,0,540);
+    lg.addColorStop(0,'#2c1e13');lg.addColorStop(.55,'#1e150d');lg.addColorStop(1,'#120d08');
+    g.fillStyle=lg;g.fillRect(0,0,960,540);
+    g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=2;
+    for(var y=28;y<540;y+=46){g.beginPath();g.moveTo(0,y);g.lineTo(960,y);g.stroke();}
+    g.strokeStyle='rgba(120,86,52,.16)';g.lineWidth=1;
+    for(var i=0;i<70;i++){var yy=(i*77)%540;g.beginPath();
+      g.moveTo((i*137)%960,yy);g.bezierCurveTo((i*137)%960+60,yy+6,(i*137)%960+120,yy-6,(i*137)%960+190,yy);g.stroke();}
+    [[210,150,150],[760,120,170],[480,330,220]].forEach(function(p){
+      var rg=g.createRadialGradient(p[0],p[1],5,p[0],p[1],p[2]);
+      rg.addColorStop(0,'rgba(255,196,110,.34)');rg.addColorStop(1,'rgba(255,196,110,0)');
+      g.fillStyle=rg;g.fillRect(p[0]-p[2],p[1]-p[2],p[2]*2,p[2]*2);});
+    g.fillStyle='rgba(58,38,22,.85)';
+    g.fillRect(0,404,960,136);
+    g.fillStyle='rgba(90,58,30,.5)';
+    for(var x=0;x<960;x+=120)g.fillRect(x,404,4,136);
+    var vg=g.createRadialGradient(480,270,180,480,270,620);
+    vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.75)');
+    g.fillStyle=vg;g.fillRect(0,0,960,540);
+    A.fon=c.toDataURL('image/jpeg',0.82);
+  })();
+
+  window.MEHANA_ASSETS=A;
+  window.MEHANA_ASSETS_PLACEHOLDER=true;
+})();
+</script>
+<!-- ============== ICONS: END MEHANA_ASSETS =========================== -->
+
+<script>
+(function(){
+"use strict";
+
+/* =======================================================================
+   1. ФОРМАТИРАНЕ НА ЧИСЛА
+   ===================================================================== */
+var SUF=[[1e15,'квдрлн.'],[1e12,'трлн.'],[1e9,'млрд.'],[1e6,'млн.'],[1e3,'хил.']];
+function trimZ(s){return s.indexOf('.')>=0?s.replace(/\.?0+$/,''):s;}
+function dec(m){return m<10?2:(m<100?1:0);}
+function fmt(n){
+  if(n===Infinity||n!==n)return '∞';
+  if(n<0)return '-'+fmt(-n);
+  if(n<1000)return trimZ(n.toFixed(dec(n)));
+  if(n>=1e18){var e=Math.floor(Math.log10(n));
+    return trimZ((n/Math.pow(10,e)).toFixed(2))+'×10^'+e;}
+  for(var i=0;i<SUF.length;i++){
+    if(n>=SUF[i][0]){var m=n/SUF[i][0];return trimZ(m.toFixed(dec(m)))+' '+SUF[i][1];}
+  }
+  return trimZ(n.toFixed(0));
+}
+function lv(n){return fmt(n)+' лв.';}
+function dur(sec){
+  sec=Math.floor(sec);
+  var d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),
+      m=Math.floor(sec%3600/60),s=sec%60;
+  if(d)return d+' д. '+h+' ч. '+m+' мин.';
+  if(h)return h+' ч. '+m+' мин.';
+  if(m)return m+' мин. '+s+' сек.';
+  return s+' сек.';
+}
+function plural(n,one,few,many){
+  if(n===1)return one;
+  if(n<5)return few;
+  return many;
+}
+
+/* =======================================================================
+   2. КОНСТАНТИ НА ИГРАТА
+   ===================================================================== */
+var COST_GROWTH=1.15;
+var UPG_STEPS=[10,25,50,100];
+var OFFLINE_CAP=8*3600;      // 8 часа
+var OFFLINE_RATIO=0.5;       // 50%
+var OFFLINE_MIN=60;          // под 1 мин. пауза се плаща изцяло, над нея — по офлайн правилата
+var MODAL_MIN=120;           // модал само при наистина дълго отсъствие
+var PRESTIGE_MIN=1e6;
+var STAR_BONUS=0.02;         // +2% на звезда
+var ACHV_BONUS=0.01;         // +1% на постижение
+var EVENT_MIN=180, EVENT_MAX=480, EVENT_LIFE=13;
+var EVENT_BOOST=7, EVENT_BOOST_TIME=60, EVENT_CASH=0.15;
+var SAVE_KEY='mehanata_save';
+var SAVE_VERSION=1;
+
+var GENS=[
+  {id:'rakia',   name:'Ракия',              icon:'rakia',   base:15,          rate:0.1},
+  {id:'salata',  name:'Шопска салата',      icon:'salata',  base:100,         rate:1},
+  {id:'meze',    name:'Мезе',               icon:'meze',    base:1100,        rate:8},
+  {id:'skara',   name:'Скара с кебапчета',  icon:'skara',   base:12000,       rate:47},
+  {id:'gaida',   name:'Гайдар',             icon:'gaida',   base:130000,      rate:260},
+  {id:'izba',    name:'Изба с вино',        icon:'izba',    base:1400000,     rate:1400},
+  {id:'terasa',  name:'Лятна тераса',       icon:'terasa',  base:20000000,    rate:7800},
+  {id:'horo',    name:'Хоро на площада',    icon:'horo',    base:330000000,   rate:44000},
+  {id:'avtobus', name:'Автобус с туристи',  icon:'avtobus', base:5100000000,  rate:260000},
+  {id:'mehana',  name:'Верига механи',      icon:'mehana',  base:75000000000, rate:1600000}
+];
+var GEN_BY_ID={};GENS.forEach(function(g,i){g.idx=i;GEN_BY_ID[g.id]=g;});
+
+var UPG_NAMES={
+  rakia:  ['Двоен казан','Дядовата рецепта','Медал от изложението','Ракия за износ'],
+  salata: ['Повече сирене','Домати от градината','Чубрица от Родопите','Салата за цяла маса'],
+  meze:   ['Луканка от избата','Пълнени чушлета','Дъска за мезета','Кралско мезе'],
+  skara:  ['Дървени въглища','Тайната подправка','Скара до тавана','Кебапче XXL'],
+  gaida:  ['Нова гайда от кожа','Каба гайда','Гайдарски събор','Оркестър „Родопа“'],
+  izba:   ['Дъбови бъчви','Реколта от Мелник','Изба на две нива','Медал от винения конкурс'],
+  terasa: ['Лозница над масите','Чадъри за дъжд','Гледка към Балкана','Тераса към морето'],
+  horo:   ['По-голям тъпан','Гости от три села','Право хоро без край','Хоро с 500 души'],
+  avtobus:['Втори автобус','Екскурзовод с мегафон','Туристи от Германия','Цял конвой автобуси'],
+  mehana: ['Втора механа в града','Франчайз договор','Механа на всяка спирка','Механи в чужбина']
+};
+
+var UPGRADES=[];
+GENS.forEach(function(g){
+  for(var i=0;i<4;i++){
+    UPGRADES.push({
+      id:g.id+'_'+i, gen:g.id, idx:i,
+      name:UPG_NAMES[g.id][i],
+      req:UPG_STEPS[i],
+      cost:g.base*10*Math.pow(5,i)
+    });
+  }
+});
+var UPG_BY_ID={};UPGRADES.forEach(function(u){UPG_BY_ID[u.id]=u;});
+
+var ACHV=[
+  {id:'a1', name:'Първа глътка',      desc:'Направи първия си тап.',                 t:function(){return S.taps>=1;}},
+  {id:'a2', name:'Наздраве!',         desc:'100 тапвания.',                          t:function(){return S.taps>=100;}},
+  {id:'a3', name:'Тападжия',          desc:'1000 тапвания.',                         t:function(){return S.taps>=1000;}},
+  {id:'a4', name:'Стотачка',          desc:'Изкарай общо 100 лв.',                   t:function(){return S.earnedTotal>=100;}},
+  {id:'a5', name:'Хилядарка',         desc:'Изкарай общо 1000 лв.',                  t:function(){return S.earnedTotal>=1000;}},
+  {id:'a6', name:'Милионер',          desc:'Изкарай общо 1 млн. лв.',                t:function(){return S.earnedTotal>=1e6;}},
+  {id:'a7', name:'Милиардер',         desc:'Изкарай общо 1 млрд. лв.',               t:function(){return S.earnedTotal>=1e9;}},
+  {id:'a8', name:'Трилионер',         desc:'Изкарай общо 1 трлн. лв.',               t:function(){return S.earnedTotal>=1e12;}},
+  {id:'a9', name:'Първи казан',       desc:'Купи първата си ракия.',                 t:function(){return S.gens.rakia>=1;}},
+  {id:'a10',name:'Десет казана',      desc:'10 бройки Ракия.',                       t:function(){return S.gens.rakia>=10;}},
+  {id:'a11',name:'Пълна маса',        desc:'25 шопски салати.',                      t:function(){return S.gens.salata>=25;}},
+  {id:'a12',name:'Дим до небето',     desc:'50 скари с кебапчета.',                  t:function(){return S.gens.skara>=50;}},
+  {id:'a13',name:'Пълна механа',      desc:'По поне 1 бройка от всеки пост.',        t:function(){return GENS.every(function(g){return S.gens[g.id]>=1;});}},
+  {id:'a14',name:'Първа звезда',      desc:'Продай механата поне веднъж.',           t:function(){return S.prestiges>=1;}},
+  {id:'a15',name:'Късметлия',         desc:'Хвани блуждаеща звезда.',                t:function(){return S.eventsCaught>=1;}}
+];
+
+/* =======================================================================
+   3. СЪСТОЯНИЕ
+   ===================================================================== */
+function defaults(){
+  var gens={},seen={};
+  GENS.forEach(function(g,i){gens[g.id]=0;seen[g.id]=(i<2);});
+  return {
+    version:SAVE_VERSION,
+    money:0, gens:gens, seen:seen, upgrades:{},
+    stars:0, prestiges:0,
+    earnedRun:0, earnedTotal:0,
+    taps:0, playtime:0, peakMoney:0, bestRate:0, bestStars:0,
+    achv:{}, eventsCaught:0,
+    muted:false,
+    boostUntil:0,
+    savedAt:Date.now()
+  };
+}
+var S=defaults();
+
+/* --- запис / четене --- */
+function migrate(raw){
+  var d=defaults();
+  if(!raw||typeof raw!=='object')return d;
+  // version 0/1 -> current: попълваме липсващи полета, пазим познатите
+  var out=d;
+  ['money','stars','prestiges','earnedRun','earnedTotal','taps','playtime',
+   'peakMoney','bestRate','bestStars','eventsCaught','boostUntil','savedAt'].forEach(function(k){
+    if(typeof raw[k]==='number'&&isFinite(raw[k]))out[k]=raw[k];
+  });
+  if(typeof raw.muted==='boolean')out.muted=raw.muted;
+  if(raw.gens)GENS.forEach(function(g){
+    var v=raw.gens[g.id];if(typeof v==='number'&&isFinite(v)&&v>=0)out.gens[g.id]=Math.floor(v);});
+  if(raw.seen)GENS.forEach(function(g,i){
+    out.seen[g.id]=(i<2)||raw.seen[g.id]===true;});
+  if(raw.upgrades)UPGRADES.forEach(function(u){if(raw.upgrades[u.id])out.upgrades[u.id]=true;});
+  if(raw.achv)ACHV.forEach(function(a){if(raw.achv[a.id])out.achv[a.id]=true;});
+  if(out.stars>out.bestStars)out.bestStars=out.stars;
+  out.version=SAVE_VERSION;
+  return out;
+}
+function save(){
+  S.savedAt=Date.now();
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify(S));}catch(e){}
+}
+function load(){
+  var raw=null;
+  try{var s=localStorage.getItem(SAVE_KEY);if(s)raw=JSON.parse(s);}catch(e){raw=null;}
+  if(!raw)return false;
+  S=migrate(raw);
+  return true;
+}
+
+/* =======================================================================
+   4. ИЗЧИСЛЕНИЯ
+   ===================================================================== */
+function upgCount(genId){
+  var n=0;
+  for(var i=0;i<4;i++)if(S.upgrades[genId+'_'+i])n++;
+  return n;
+}
+function achvCount(){var n=0;for(var k in S.achv)if(S.achv[k])n++;return n;}
+function boostActive(){return S.boostUntil>Date.now();}
+function globalMult(){
+  return (1+STAR_BONUS*S.stars)*(1+ACHV_BONUS*achvCount())*(boostActive()?EVENT_BOOST:1);
+}
+function genRate(g){                       // приход/сек от целия пост, с всички бонуси
+  return S.gens[g.id]*g.rate*Math.pow(2,upgCount(g.id))*globalMult();
+}
+function totalRate(){
+  var t=0;for(var i=0;i<GENS.length;i++)t+=genRate(GENS[i]);return t;
+}
+function genCost(g,n){                     // цена на следващия екземпляр
+  return g.base*Math.pow(COST_GROWTH,(n===undefined?S.gens[g.id]:n));
+}
+function tapValue(){return Math.max(1,0.02*totalRate());}
+function starsFromPrestige(){
+  return Math.floor(Math.sqrt(S.earnedRun/PRESTIGE_MIN));
+}
+function earn(n){
+  S.money+=n;S.earnedRun+=n;S.earnedTotal+=n;
+  if(S.money>S.peakMoney)S.peakMoney=S.money;
+}
+
+/* =======================================================================
+   5. ЗВУК
+   ===================================================================== */
+var AC=null;
+function audio(){
+  if(S.muted)return null;
+  if(!AC){
+    var C=window.AudioContext||window.webkitAudioContext;
+    if(!C)return null;
+    try{AC=new C();}catch(e){return null;}
+  }
+  if(AC.state==='suspended')AC.resume();
+  return AC;
+}
+function tone(freq,freq2,dur,type,vol,delay){
+  var ac=audio();if(!ac)return;
+  var t0=ac.currentTime+(delay||0);
+  var o=ac.createOscillator(),g=ac.createGain();
+  o.type=type||'sine';
+  o.frequency.setValueAtTime(freq,t0);
+  if(freq2&&freq2!==freq)o.frequency.exponentialRampToValueAtTime(freq2,t0+dur);
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(vol||0.12,t0+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g);g.connect(ac.destination);
+  o.start(t0);o.stop(t0+dur+0.03);
+}
+var SFX={
+  tap:function(){tone(620,880,0.07,'sine',0.10);},
+  buy:function(){tone(420,660,0.11,'triangle',0.13);tone(660,880,0.10,'triangle',0.08,0.06);},
+  unlock:function(){[523,659,784,1047].forEach(function(f,i){tone(f,f,0.13,'triangle',0.11,i*0.07);});},
+  achv:function(){[784,988,1175,1568].forEach(function(f,i){tone(f,f,0.16,'sine',0.11,i*0.08);});},
+  event:function(){tone(1200,1900,0.18,'sine',0.10);tone(900,1500,0.2,'sine',0.07,0.1);},
+  reward:function(){[392,523,659,784,1047].forEach(function(f,i){tone(f,f,0.18,'triangle',0.12,i*0.06);});},
+  prestige:function(){[262,330,392,523,659,784].forEach(function(f,i){tone(f,f,0.22,'sine',0.12,i*0.1);});},
+  err:function(){tone(180,120,0.09,'square',0.05);}
+};
+
+function vibe(ms){try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}}
+
+/* =======================================================================
+   6. DOM
+   ===================================================================== */
+var $=function(id){return document.getElementById(id);};
+var elMoney=$('money'),elRate=$('rate'),elStarNum=$('starNum'),elBoost=$('boostBar'),
+    elTapHint=$('tapHint'),elGenList=$('genList'),elUpgList=$('upgList'),
+    elStarPane=$('starPane'),elStatsPane=$('statsPane'),elSetPane=$('setPane'),
+    elTapBtn=$('tapBtn'),elToasts=$('toasts'),elModalRoot=$('modalRoot'),elMbox=$('mbox'),
+    elEventHost=$('eventHost'),elTapZone=document.querySelector('.tapzone');
+
+function applyAssets(){
+  var A=window.MEHANA_ASSETS||{};
+  if(A.fon)$('bg').style.backgroundImage='url('+A.fon+')';
+  if(A.moneti)$('tapIco').src=A.moneti;
+  if(A.zvezda){$('starIco').src=A.zvezda;$('tabIcoS').src=A.zvezda;$('eventIco').src=A.zvezda;}
+  if(A.mehana)$('tabIcoM').src=A.mehana;
+}
+function assetFor(key){
+  var A=window.MEHANA_ASSETS||{};
+  return A[key]||'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+}
+
+/* --- модал --- */
+var modalOpen=false;
+function modal(opts){
+  elMbox.innerHTML='';
+  var h=document.createElement('h3');h.textContent=opts.title;elMbox.appendChild(h);
+  var t=document.createElement('div');t.className='mtxt';t.innerHTML=opts.html||'';elMbox.appendChild(t);
+  (opts.buttons||[{label:'Добре'}]).forEach(function(b){
+    var btn=document.createElement('button');
+    btn.className='btn'+(b.cls?' '+b.cls:'');
+    btn.textContent=b.label;
+    btn.addEventListener('click',function(){closeModal();if(b.fn)b.fn();});
+    elMbox.appendChild(btn);
+  });
+  elModalRoot.classList.add('on');modalOpen=true;
+}
+function closeModal(){elModalRoot.classList.remove('on');modalOpen=false;}
+elModalRoot.addEventListener('click',function(e){if(e.target===elModalRoot)closeModal();});
+
+/* --- toast --- */
+function toast(title,desc,ms){
+  var d=document.createElement('div');d.className='toast';
+  d.innerHTML='<div class="tt"></div><div class="td"></div>';
+  d.firstChild.textContent=title;d.lastChild.textContent=desc||'';
+  elToasts.appendChild(d);
+  setTimeout(function(){
+    d.classList.add('out');
+    setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},380);
+  },ms||3000);
+  while(elToasts.children.length>3)elToasts.removeChild(elToasts.firstChild);
+}
+
+/* =======================================================================
+   7. СТРОЕЖ НА СПИСЪЦИТЕ
+   ===================================================================== */
+var genRows={};
+function buildGenList(){
+  elGenList.innerHTML='';genRows={};
+  GENS.forEach(function(g){
+    var b=document.createElement('button');
+    b.className='row';b.dataset.id=g.id;
+    b.innerHTML=
+      '<img class="ic" alt="">'+
+      '<div class="rmid"><div class="rname"></div><div class="rsub"></div><div class="rprice"></div></div>'+
+      '<div class="rright"><div class="rcount">0</div><div class="rtag">бр.</div></div>';
+    b.querySelector('.ic').src=assetFor(g.icon);
+    b.querySelector('.rname').textContent=g.name;
+    b.style.display='none';
+    b.addEventListener('click',function(){buyGen(g);});
+    elGenList.appendChild(b);
+    genRows[g.id]={el:b,sub:b.querySelector('.rsub'),price:b.querySelector('.rprice'),
+                   cnt:b.querySelector('.rcount')};
+  });
+  var hint=document.createElement('div');
+  hint.className='hint';hint.id='genHint';
+  hint.textContent='Следващият пост се появява, щом можеш да си позволиш половината му цена.';
+  elGenList.appendChild(hint);
+}
+
+var upgRows={};
+function buildUpgList(){
+  elUpgList.innerHTML='';upgRows={};
+  var head=document.createElement('div');
+  head.className='sechead';head.textContent='Ъпгрейди';
+  elUpgList.appendChild(head);
+  UPGRADES.forEach(function(u){
+    var g=GEN_BY_ID[u.gen];
+    var b=document.createElement('button');
+    b.className='row';b.dataset.id=u.id;
+    b.innerHTML=
+      '<img class="ic" alt="">'+
+      '<div class="rmid"><div class="rname"></div><div class="rsub"></div><div class="rprice"></div></div>'+
+      '<div class="rright"><div class="rcount">×2</div><div class="rtag"></div></div>';
+    b.querySelector('.ic').src=assetFor(g.icon);
+    b.querySelector('.rname').textContent=u.name;
+    b.style.display='none';
+    b.addEventListener('click',function(){buyUpg(u);});
+    elUpgList.appendChild(b);
+    upgRows[u.id]={el:b,sub:b.querySelector('.rsub'),price:b.querySelector('.rprice'),
+                   tag:b.querySelector('.rtag'),cnt:b.querySelector('.rcount')};
+  });
+  var none=document.createElement('div');
+  none.className='hint';none.id='upgHint';
+  elUpgList.appendChild(none);
+}
+
+function buildStarPane(){
+  elStarPane.innerHTML=
+    '<div class="panel">'+
+      '<h2>Продай механата</h2>'+
+      '<div class="big"><img src="'+assetFor('zvezda')+'" alt=""><span id="pStars">0</span></div>'+
+      '<p id="pBonus"></p>'+
+      '<p id="pInfo"></p>'+
+      '<button class="btn" id="btnPrestige">Продай механата</button>'+
+      '<p id="pNeed" style="margin-top:8px"></p>'+
+    '</div>'+
+    '<div class="sechead">Постижения (<span id="aCount">0</span>/'+ACHV.length+')</div>'+
+    '<div class="panel" style="padding:10px"><p style="margin-bottom:8px">Всяко постижение дава +1% към целия приход завинаги.</p>'+
+    '<div id="achvList"></div></div>';
+  var list=$('achvList');
+  ACHV.forEach(function(a){
+    var d=document.createElement('div');
+    d.className='achv';d.dataset.id=a.id;
+    d.innerHTML='<div class="amark">✓</div><div><div class="an"></div><div class="ad"></div></div>';
+    d.querySelector('.an').textContent=a.name;
+    d.querySelector('.ad').textContent=a.desc;
+    list.appendChild(d);
+  });
+  $('btnPrestige').addEventListener('click',askPrestige);
+}
+
+function buildSetPane(){
+  elSetPane.innerHTML=
+    '<div class="panel">'+
+      '<h2>Звук</h2>'+
+      '<p>Тапване, покупки, отключвания.</p>'+
+      '<button class="btn ghost" id="btnMute">Звук: вкл.</button>'+
+    '</div>'+
+    '<div class="panel">'+
+      '<h2>Запис</h2>'+
+      '<p>Играта се записва автоматично на всеки 10 секунди и при излизане.</p>'+
+      '<p id="setSaved"></p>'+
+      '<button class="btn ghost" id="btnSaveNow">Запиши сега</button>'+
+      '<button class="btn danger" id="btnWipe">Изтрий записа</button>'+
+    '</div>'+
+    '<div class="panel">'+
+      '<h2>Механата</h2>'+
+      '<p>Офлайн приход: 50% от прихода, до 8 часа.</p>'+
+      '<p>Един файл, без интернет. Добави я на началния екран за цял екран.</p>'+
+      (window.MEHANA_ASSETS_PLACEHOLDER?
+        '<p class="warn" style="text-align:left;padding:8px 0 0">Иконите в момента са процедурни заместители — истинският <b>icons.js</b> не можа да бъде свален.</p>':'')+
+    '</div>';
+  $('btnMute').addEventListener('click',function(){
+    S.muted=!S.muted;refreshMute();if(!S.muted)SFX.buy();save();
+  });
+  $('btnSaveNow').addEventListener('click',function(){save();toast('Записано','Прогресът е запазен.',1800);});
+  $('btnWipe').addEventListener('click',function(){
+    modal({title:'Изтриване на записа',
+      html:'Сигурен ли си? Ще загубиш <em>всичко</em> — пари, постове, ъпгрейди, звезди и постижения. Това не може да се върне.',
+      buttons:[
+        {label:'Да, изтрий',cls:'danger',fn:function(){
+          try{localStorage.removeItem(SAVE_KEY);}catch(e){}
+          S=defaults();
+          rebuildAll();
+          toast('Изтрито','Механата е нова-новеничка.',2600);
+        }},
+        {label:'Откажи',cls:'ghost'}
+      ]});
+  });
+  refreshMute();
+}
+function refreshMute(){
+  var b=$('btnMute');if(b)b.textContent='Звук: '+(S.muted?'изкл.':'вкл.');
+}
+
+/* =======================================================================
+   8. ОБНОВЯВАНЕ НА ИНТЕРФЕЙСА
+   ===================================================================== */
+var booting=true;   // докато е true, отключванията стават без звук и toast
+var lastMoneyTxt='',lastRateTxt='',lastStarTxt='';
+function renderHeader(){
+  var m=lv(S.money);
+  if(m!==lastMoneyTxt){elMoney.textContent=m;lastMoneyTxt=m;}
+  var r=fmt(totalRate())+' лв./сек';
+  if(r!==lastRateTxt){elRate.textContent=r;lastRateTxt=r;}
+  var st=String(S.stars);
+  if(st!==lastStarTxt){elStarNum.textContent=st;lastStarTxt=st;}
+  if(boostActive()){
+    elBoost.classList.add('on');
+    elBoost.textContent='×'+EVENT_BOOST+' приход — още '+Math.ceil((S.boostUntil-Date.now())/1000)+' сек.';
+  }else if(elBoost.classList.contains('on')){
+    elBoost.classList.remove('on');
+  }
+  elTapHint.textContent='+'+lv(tapValue())+' на тап';
+}
+
+function renderGens(){
+  var newlyVisible=false;
+  GENS.forEach(function(g,i){
+    // видимост: първите два винаги; следващият — при 50% от базовата цена
+    if(!S.seen[g.id]){
+      var prevSeen=(i===0)||S.seen[GENS[i-1].id];
+      if(prevSeen&&(S.money>=g.base*0.5||S.gens[g.id]>0)){
+        S.seen[g.id]=true;newlyVisible=true;
+        if(!booting){                       // при зареждане наваксваме тихо
+          SFX.unlock();
+          toast('Нов пост: '+g.name,'Вече можеш да го купиш.',3200);
+        }
+      }
+    }
+    var r=genRows[g.id];
+    if(!S.seen[g.id]){r.el.style.display='none';return;}
+    if(r.el.style.display==='none'){
+      r.el.style.display='';
+      r.el.classList.add('pop');
+      setTimeout(function(){r.el.classList.remove('pop');},520);
+    }
+    var cost=genCost(g),n=S.gens[g.id];
+    if(r.cnt.textContent!==String(n))r.cnt.textContent=n;
+    r.price.textContent=lv(cost);
+    r.sub.textContent = n>0
+      ? 'Дава '+fmt(genRate(g))+' лв./сек'
+      : 'Ще дава '+fmt(g.rate*globalMult())+' лв./сек';
+    var poor=S.money<cost;
+    r.el.classList.toggle('poor',poor);
+  });
+  var hint=$('genHint');
+  if(hint)hint.style.display=GENS.every(function(g){return S.seen[g.id];})?'none':'';
+  return newlyVisible;
+}
+
+function renderUpgs(){
+  var avail=0,shown=0;
+  UPGRADES.forEach(function(u){
+    var g=GEN_BY_ID[u.gen],r=upgRows[u.id];
+    var owned=S.gens[u.gen],bought=!!S.upgrades[u.id],unlocked=owned>=u.req;
+    var visible=S.seen[u.gen]&&(unlocked||bought||owned>=Math.max(1,u.req/2));
+    if(!visible){r.el.style.display='none';return;}
+    r.el.style.display='';shown++;
+    r.price.textContent=bought?'Купен':lv(u.cost);
+    r.sub.textContent='Удвоява прихода от «'+g.name+'»';
+    r.el.classList.toggle('done',bought);
+    r.el.classList.toggle('locked',!bought&&!unlocked);
+    var poor=!bought&&unlocked&&S.money<u.cost;
+    r.el.classList.toggle('poor',poor);
+    if(bought){r.tag.textContent='✓';r.cnt.textContent='×2';}
+    else if(!unlocked){r.tag.textContent='нужни '+u.req;r.cnt.textContent=owned+'/'+u.req;}
+    else {r.tag.textContent='';r.cnt.textContent='×2';avail++;}
+    // 0 = мога да го купя сега, 1 = отключен но скъп, 2 = още заключен, 3 = купен
+    r.el.style.order = bought?3:(!unlocked?2:(poor?1:0));
+  });
+  var h=$('upgHint');
+  if(h)h.textContent=shown?'':'Още няма ъпгрейди. Купи поне 5 бройки от някой пост.';
+  // точка на таба
+  var canBuy=UPGRADES.some(function(u){
+    return !S.upgrades[u.id]&&S.gens[u.gen]>=u.req&&S.money>=u.cost;});
+  document.querySelector('nav button[data-scr="upg"]').classList.toggle('hasnew',canBuy);
+}
+
+function renderStarPane(){
+  var gain=starsFromPrestige();
+  $('pStars').textContent=S.stars;
+  $('pBonus').textContent='Бонус в момента: +'+(S.stars*STAR_BONUS*100).toFixed(0)+'% към целия приход.';
+  $('pInfo').textContent='Продажби до момента: '+S.prestiges+'. Изкарано в този живот: '+lv(S.earnedRun);
+  var btn=$('btnPrestige');
+  var ok=S.earnedRun>=PRESTIGE_MIN&&gain>0;
+  btn.disabled=!ok;
+  btn.textContent=ok?('Продай механата за '+gain+' '+plural(gain,'звезда','звезди','звезди')):'Продай механата';
+  $('pNeed').textContent=ok?'Нулират се пари, постове и ъпгрейди. Звездите остават.'
+    :'Нужни са поне '+lv(PRESTIGE_MIN)+' изкарани в този живот.';
+  var n=achvCount();
+  $('aCount').textContent=n;
+  ACHV.forEach(function(a){
+    var d=$('achvList').querySelector('[data-id="'+a.id+'"]');
+    if(d)d.classList.toggle('got',!!S.achv[a.id]);
+  });
+  document.querySelector('nav button[data-scr="star"]').classList.toggle('hasnew',ok);
+}
+
+function renderStats(){
+  var rows=[
+    ['Изиграно време',dur(S.playtime)],
+    ['Общо тапвания',S.taps.toLocaleString('bg-BG')],
+    ['Най-много пари наведнъж',lv(S.peakMoney)],
+    ['Най-добър приход/сек',fmt(S.bestRate)+' лв./сек'],
+    ['Изкарано в този живот',lv(S.earnedRun)],
+    ['Изкарано за всички животи',lv(S.earnedTotal)],
+    ['Приход в момента',fmt(totalRate())+' лв./сек'],
+    ['На тап',lv(tapValue())],
+    ['Продадени механи',String(S.prestiges)],
+    ['Звезди',String(S.stars)+' (рекорд '+S.bestStars+')'],
+    ['Бонус от звезди','+'+(S.stars*STAR_BONUS*100).toFixed(0)+'%'],
+    ['Постижения',achvCount()+'/'+ACHV.length+' (+'+achvCount()+'%)'],
+    ['Уловени звезди',String(S.eventsCaught)],
+    ['Купени постове',String(GENS.reduce(function(s,g){return s+S.gens[g.id];},0))],
+    ['Купени ъпгрейди',Object.keys(S.upgrades).length+'/'+UPGRADES.length],
+    ['Общ множител','×'+globalMult().toFixed(2)]
+  ];
+  var html='<div class="panel">';
+  rows.forEach(function(r){
+    html+='<div class="stat"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>';
+  });
+  html+='</div>';
+  elStatsPane.innerHTML=html;
+}
+
+function renderAll(){
+  renderHeader();renderGens();renderUpgs();
+  if(curScreen==='star')renderStarPane();
+  if($('sheetStats').classList.contains('on'))renderStats();
+  var ss=$('setSaved');
+  if(ss)ss.textContent='Последен запис: преди '+dur((Date.now()-S.savedAt)/1000);
+}
+function rebuildAll(){
+  buildGenList();buildUpgList();buildStarPane();buildSetPane();
+  lastMoneyTxt=lastRateTxt=lastStarTxt='';
+  renderAll();renderStarPane();
+}
+
+/* =======================================================================
+   9. ДЕЙСТВИЯ
+   ===================================================================== */
+function buyGen(g){
+  var cost=genCost(g);
+  if(S.money<cost){SFX.err();vibe(6);return;}
+  S.money-=cost;S.gens[g.id]++;
+  SFX.buy();vibe(12);
+  checkAchv();renderAll();
+}
+function buyUpg(u){
+  if(S.upgrades[u.id]){return;}
+  if(S.gens[u.gen]<u.req){SFX.err();return;}
+  if(S.money<u.cost){SFX.err();vibe(6);return;}
+  S.money-=u.cost;S.upgrades[u.id]=true;
+  SFX.unlock();vibe(18);
+  toast('Ъпгрейд: '+u.name,'«'+GEN_BY_ID[u.gen].name+'» дава двойно.',3000);
+  checkAchv();renderAll();
+}
+
+function doTap(){
+  var v=tapValue();
+  earn(v);S.taps++;
+  vibe(10);SFX.tap();
+  elTapBtn.classList.add('bump');
+  setTimeout(function(){elTapBtn.classList.remove('bump');},80);
+  var f=document.createElement('div');
+  f.className='float';f.textContent='+'+lv(v);
+  f.style.left=(42+Math.random()*16)+'%';
+  elTapZone.appendChild(f);
+  setTimeout(function(){if(f.parentNode)f.parentNode.removeChild(f);},900);
+  checkAchv();
+}
+elTapBtn.addEventListener('pointerdown',function(e){e.preventDefault();doTap();});
+elTapBtn.addEventListener('contextmenu',function(e){e.preventDefault();});
+
+function askPrestige(){
+  var gain=starsFromPrestige();
+  if(S.earnedRun<PRESTIGE_MIN||gain<1){SFX.err();return;}
+  modal({
+    title:'Продай механата',
+    html:'Ще получиш <em>'+gain+' '+plural(gain,'звезда','звезди','звезди')+'</em>.<br><br>'+
+         'Общо звезди след това: <em>'+(S.stars+gain)+'</em> — това е <em>+'+
+         ((S.stars+gain)*STAR_BONUS*100).toFixed(0)+'%</em> към целия приход, завинаги.<br><br>'+
+         'Губиш парите, всички постове и всички ъпгрейди. Постиженията и звездите остават.',
+    buttons:[
+      {label:'Продай я',fn:function(){doPrestige(gain);}},
+      {label:'Още не',cls:'ghost'}
+    ]
+  });
+}
+function doPrestige(gain){
+  S.stars+=gain;S.prestiges++;
+  if(S.stars>S.bestStars)S.bestStars=S.stars;
+  S.money=0;S.earnedRun=0;S.boostUntil=0;
+  GENS.forEach(function(g,i){S.gens[g.id]=0;S.seen[g.id]=(i<2);});
+  S.upgrades={};
+  SFX.prestige();vibe([20,40,20]);
+  checkAchv();save();
+  lastMoneyTxt=lastRateTxt=lastStarTxt='';
+  renderAll();renderStarPane();
+  toast('Механата е продадена','+'+gain+' '+plural(gain,'звезда','звезди','звезди')+'. Наздраве за новото начало!',4000);
+}
+
+/* --- постижения --- */
+// silent=true при зареждане: наваксваме постиженията от записа без порой от toast-ове
+function checkAchv(silent){
+  for(var i=0;i<ACHV.length;i++){
+    var a=ACHV[i];
+    if(!S.achv[a.id]&&a.t()){
+      S.achv[a.id]=true;
+      if(!silent){
+        SFX.achv();vibe(24);
+        toast('Постижение: '+a.name,a.desc+' +1% приход.',3600);
+      }
+    }
+  }
+}
+
+/* =======================================================================
+   10. СЛУЧАЙНИ СЪБИТИЯ
+   ===================================================================== */
+var eventTimer=null,eventHideTimer=null;
+function scheduleEvent(){
+  clearTimeout(eventTimer);
+  var wait=(EVENT_MIN+Math.random()*(EVENT_MAX-EVENT_MIN))*1000;
+  eventTimer=setTimeout(showEvent,wait);
+}
+function showEvent(){
+  elEventHost.classList.add('on');
+  elEventHost.style.top=(28+Math.random()*34)+'%';
+  SFX.event();
+  clearTimeout(eventHideTimer);
+  eventHideTimer=setTimeout(function(){
+    elEventHost.classList.remove('on');
+    scheduleEvent();
+  },EVENT_LIFE*1000);
+}
+$('eventBtn').addEventListener('pointerdown',function(e){
+  e.preventDefault();
+  if(!elEventHost.classList.contains('on'))return;
+  elEventHost.classList.remove('on');
+  clearTimeout(eventHideTimer);
+  S.eventsCaught++;
+  vibe([15,30,15]);SFX.reward();
+  if(Math.random()<0.5){
+    S.boostUntil=Date.now()+EVENT_BOOST_TIME*1000;
+    toast('Гуляй!','×'+EVENT_BOOST+' приход за '+EVENT_BOOST_TIME+' секунди.',4000);
+  }else{
+    var bonus=Math.max(S.money*EVENT_CASH,totalRate()*30);
+    earn(bonus);
+    toast('Щедър клиент','Даде ти '+lv(bonus)+' бакшиш.',4000);
+  }
+  checkAchv();renderAll();save();
+  scheduleEvent();
+});
+
+/* =======================================================================
+   11. ТАБОВЕ И ЕКРАНИ
+   ===================================================================== */
+var curScreen='mehana';
+Array.prototype.forEach.call(document.querySelectorAll('nav button'),function(b){
+  b.addEventListener('click',function(){
+    curScreen=b.dataset.scr;
+    Array.prototype.forEach.call(document.querySelectorAll('nav button'),function(x){
+      x.classList.toggle('active',x===b);});
+    Array.prototype.forEach.call(document.querySelectorAll('.screen'),function(s){
+      s.classList.toggle('active',s.id==='scr-'+curScreen);});
+    if(curScreen==='star')renderStarPane();
+    if(curScreen==='upg')renderUpgs();
+  });
+});
+function openSheet(id){
+  $(id).classList.add('on');
+  if(id==='sheetStats')renderStats();
+  if(id==='sheetSet'){refreshMute();renderAll();}
+}
+$('btnStats').addEventListener('click',function(){openSheet('sheetStats');});
+$('btnSettings').addEventListener('click',function(){openSheet('sheetSet');});
+Array.prototype.forEach.call(document.querySelectorAll('[data-close]'),function(b){
+  b.addEventListener('click',function(){$(b.dataset.close).classList.remove('on');});
+});
+
+/* =======================================================================
+   12. ОФЛАЙН ПРОГРЕС
+   ===================================================================== */
+function applyAway(seconds,showModal){
+  var capped=Math.min(seconds,OFFLINE_CAP);
+  var gain=totalRate()*capped*OFFLINE_RATIO;
+  if(gain<=0)return 0;
+  earn(gain);
+  if(showModal){
+    modal({
+      title:'Докато те нямаше',
+      html:'Механата изкара <em>'+lv(gain)+'</em><br><br>'+
+           'Отсъствие: '+dur(seconds)+
+           (seconds>OFFLINE_CAP?' — начислени са само първите 8 часа':'')+
+           '<br>Офлайн се начислява 50% от прихода.'
+    });
+  }
+  return gain;
+}
+
+/* =======================================================================
+   13. ИГРОВИ ЦИКЪЛ
+   ===================================================================== */
+// Времето се мери САМО тук, по стенен часовник. Така няма значение дали
+// requestAnimationFrame е спрял (заспал телефон, скрит таб) или е бил throttle-нат —
+// пропуснатото време се начислява точно веднъж, на следващия кадър.
+var lastWall=0,uiAcc=0,saveAcc=0,achvAcc=0;
+function loop(){
+  requestAnimationFrame(loop);
+  var now=Date.now();
+  if(!lastWall){lastWall=now;return;}
+  var dt=(now-lastWall)/1000;
+  lastWall=now;
+  if(dt<0)dt=0;                       // преместен назад системен часовник
+  if(dt>=OFFLINE_MIN){                // дълга пауза → по офлайн правилата
+    applyAway(dt,dt>=MODAL_MIN);
+    save();renderAll();
+    return;
+  }
+  var r=totalRate();
+  if(r>0)earn(r*dt);
+  if(r>S.bestRate)S.bestRate=r;
+  S.playtime+=dt;
+
+  uiAcc+=dt;saveAcc+=dt;achvAcc+=dt;
+  if(achvAcc>=1){achvAcc=0;checkAchv();}
+  if(uiAcc>=0.14){uiAcc=0;renderAll();}
+  if(saveAcc>=10){saveAcc=0;save();}
+}
+
+/* =======================================================================
+   14. ЖИЗНЕН ЦИКЪЛ
+   ===================================================================== */
+function onHide(){save();}
+document.addEventListener('visibilitychange',function(){
+  // Само записваме/прерисуваме. Начисляването на пропуснатото време е
+  // изцяло работа на loop(), иначе едно и също време се плаща два пъти.
+  if(document.visibilityState==='hidden')onHide();
+  else renderAll();
+});
+window.addEventListener('pagehide',onHide);
+window.addEventListener('blur',function(){save();});
+
+/* =======================================================================
+   15. СТАРТ
+   ===================================================================== */
+function boot(){
+  applyAssets();
+  var had=load();
+  checkAchv(true);              // наваксване от записа, без toast-ове
+  rebuildAll();
+  if(had){
+    var away=(Date.now()-S.savedAt)/1000;
+    if(away>=OFFLINE_MIN)applyAway(away,true);
+    else if(away>0)earn(totalRate()*away);
+  }
+  checkAchv(true);
+  renderAll();renderStarPane();
+  booting=false;
+  scheduleEvent();
+  requestAnimationFrame(loop);
+
+  // Първото докосване „отключва“ звука (политика за автоплей в Chrome)
+  var unlockAudio=function(){
+    if(!S.muted)audio();
+    document.removeEventListener('pointerdown',unlockAudio);
+  };
+  document.addEventListener('pointerdown',unlockAudio);
+
+  // да не се дърпа страницата и да няма pinch-zoom
+  document.addEventListener('gesturestart',function(e){e.preventDefault();});
+  document.addEventListener('dblclick',function(e){e.preventDefault();});
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
