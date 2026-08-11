@@ -97,6 +97,15 @@ export default async function run(browser) {
       check('3 часа отсъствие показва модал', /Докато те нямаше/.test(m));
       check('без двойни точки в текста', !/лв\.\./.test(m), m.split('\n')[1] || '');
     });
+  // lv() и dur() вече завършват с точка — добавена втора се вижда като „лв..“
+  suite('без двойни точки');
+  await withGame(browser, { money: 1e12 }, async (page) => {
+      await goTab(page, 'star');
+      await page.waitForTimeout(350);
+      const pane = await text(page, '#starPane');
+      check('екранът Звезди няма „лв..“', !/лв\.\./.test(pane),
+        (pane.match(/.{0,30}лв\.\..{0,20}/) || [''])[0]);
+    });
   await withGame(browser, { gens: OFFLINE_GENS, savedAt: Date.now() - 30 * 3600e3 },
     async page => {
       await page.waitForTimeout(400);

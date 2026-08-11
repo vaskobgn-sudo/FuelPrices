@@ -1557,7 +1557,7 @@ function renderStarPane(){
     bb.textContent='Строй '+nb.name+' — '+lv(nb.cost);
     $('bNeed').textContent=S.money>=nb.cost
       ? nb.desc
-      : 'Трябват още '+lv(nb.cost-S.money)+'.';
+      : 'Трябват още '+lv(nb.cost-S.money);
   }
 
   /* --- Дядовата изба --- */

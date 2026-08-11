@@ -1,6 +1,6 @@
 // Генериран от tools/build-site.js — не го редактирай на ръка.
 // Версия на играта: Алфа 0.3
-const CACHE = 'mehanata-cd47a3912767';
+const CACHE = 'mehanata-2a15b8753044';
 const ASSETS = ["./","index.html","manifest.webmanifest","icon-192.png","icon-512.png","icon-512-maskable.png","apple-touch-icon.png"];
 
 self.addEventListener('install', e => {
