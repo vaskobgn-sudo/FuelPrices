@@ -99,9 +99,13 @@ export default async function run(browser) {
       money: document.getElementById('money')?.innerText || null,
       tap: !!document.getElementById('tapBtn'),
       rows: document.querySelectorAll('#genList .row').length,
+      visible: [...document.querySelectorAll('#genList .row')]
+        .filter(r => r.style.display !== 'none').length,
       icons: !!(window.MEHANA_ASSETS && Object.keys(window.MEHANA_ASSETS).length === 13)
     }));
-    check('играта се зарежда без мрежа', offlineOK.tap && offlineOK.rows === 10,
+    // всички постове са в DOM-а; видими са само отключените от сградата
+    check('играта се зарежда без мрежа',
+      offlineOK.tap && offlineOK.rows === 15 && offlineOK.visible >= 2,
       JSON.stringify(offlineOK));
     check('иконите оцеляват офлайн', offlineOK.icons);
 

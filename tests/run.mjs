@@ -3,7 +3,7 @@
 //   node tests/run.mjs            всички
 //   node tests/run.mjs regression само този набор
 import { getChromium, summary, suite, check } from './lib.mjs';
-import { simulate, BASELINE_V01, DRIFT_LIMIT, fmtTime } from '../tools/balance.js';
+import { checkTargets, fmtTime } from '../tools/balance.js';
 
 const SUITES = {
   regression: () => import('./regression.mjs'),
@@ -11,15 +11,16 @@ const SUITES = {
   pwa:        () => import('./pwa.mjs')
 };
 
+// Балансът вече не се сверява с 0.1 — в 0.3 той е сменен нарочно. Проверява се
+// попадане в целевите прозорци, тоест че съдържанието НЕ се изяжда за вечер.
 function balanceCheck() {
   suite('баланс');
-  const { first } = simulate();
-  for (const [name, base] of Object.entries(BASELINE_V01)) {
-    const got = first[name];
-    if (got === undefined) { check(`${name} се достига`, false, 'постът не беше купен'); continue; }
-    const drift = Math.abs(got - base) / base;
-    check(`${name}: ${fmtTime(got)}`, drift <= DRIFT_LIMIT,
-      `отклонение ${(drift * 100).toFixed(1)}% спрямо 0.1 (праг ${DRIFT_LIMIT * 100}%)`);
+  for (const r of checkTargets()) {
+    const got = r.text !== undefined ? r.text : fmtTime(r.got);
+    const window = r.text !== undefined ? '' :
+      (r.max === undefined ? `поне ${fmtTime(r.min)}`
+                           : `прозорец ${fmtTime(r.min)} – ${fmtTime(r.max)}`);
+    check(`${r.name}: ${got}`, r.ok, window);
   }
 }
 

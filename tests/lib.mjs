@@ -53,10 +53,16 @@ export function summary() {
 }
 
 /* ---------- състояние на играта ---------- */
+// version: 3 е важно. Записи отпреди 3 минават през ребаланса на Алфа 0.3 и
+// почват начисто — тоест инжектираното състояние се изхвърля. Тестовете за
+// самия ребаланс подават по-стара версия нарочно.
 export const BASE_SAVE = {
-  version: 1, money: 0, gens: {}, seen: {}, upgrades: {}, stars: 0, prestiges: 0,
+  version: 3, money: 0, gens: {}, seen: {}, upgrades: {}, stars: 0, prestiges: 0,
   earnedRun: 0, earnedTotal: 0, taps: 0, playtime: 0, peakMoney: 0, bestRate: 0,
-  bestStars: 0, achv: {}, eventsCaught: 0, muted: true, boostUntil: 0, savedAt: 0
+  bestStars: 0, achv: {}, eventsCaught: 0, muted: true, boostUntil: 0,
+  buyMode: 1, crits: 0, freeGifts: 0, bulkBuys: 0,
+  starsTotal: 0, starsSpent: 0, starShop: {}, building: 0, veteran: false,
+  savedAt: 0
 };
 
 /**

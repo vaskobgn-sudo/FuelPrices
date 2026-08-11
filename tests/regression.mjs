@@ -57,14 +57,15 @@ export default async function run(browser) {
 
   /* ---------------- престиж ---------------- */
   suite('престиж');
+  // Алфа 0.3: корен ТРЕТИ. cbrt(27e6 / 1e6) = 3.
   await withGame(browser, {
-    money: 5e6, earnedRun: 9e6, earnedTotal: 9e6,
+    money: 5e6, earnedRun: 27e6, earnedTotal: 27e6,
     gens: { rakia: 50 }, upgrades: { rakia_0: true }
   }, async page => {
     await goTab(page, 'star');
     await page.waitForTimeout(250);
     const label = await text(page, '#btnPrestige');
-    check('floor(sqrt(9e6/1e6)) = 3 звезди', /за 3 звезди/.test(label), `бутон: „${label}“`);
+    check('floor(cbrt(27e6/1e6)) = 3 звезди', /за 3 звезди/.test(label), `бутон: „${label}“`);
     await tap(page, '#btnPrestige');
     await page.waitForTimeout(250);
     await page.locator('#mbox .btn').first().click();
@@ -76,7 +77,9 @@ export default async function run(browser) {
     eq('ъпгрейдите се нулират', Object.keys(s.upgrades).length, 0);
     eq('броячът на престижи расте', s.prestiges, 1);
     eq('видимите постове се връщат на 2', Object.values(s.seen).filter(Boolean).length, 2);
+    eq('изкараните за цял живот звезди се трупат', s.starsTotal, 3);
     eq('рекордът на звездите се пази', s.bestStars, 3);
+    eq('сградата остава', s.building, 0);
   });
   await withGame(browser, { earnedRun: 999_999 }, async page => {
     await goTab(page, 'star');

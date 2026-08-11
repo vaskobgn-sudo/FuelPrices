@@ -634,7 +634,7 @@ function plural(n,one,few,many){
    2. КОНСТАНТИ НА ИГРАТА
    ===================================================================== */
 var COST_GROWTH=1.15;
-var UPG_STEPS=[10,25,50,100];
+var UPG_STEPS=[10,25,50,100,150,200,300];   // последните три се отключват от сградата
 var OFFLINE_CAP=8*3600;      // 8 часа
 var OFFLINE_RATIO=0.5;       // 50%
 var OFFLINE_MIN=60;          // под 1 мин. пауза се плаща изцяло, над нея — по офлайн правилата
@@ -645,9 +645,17 @@ var ACHV_BONUS=0.01;         // +1% на постижение
 var EVENT_MIN=180, EVENT_MAX=480, EVENT_LIFE=13;
 var EVENT_BOOST=7, EVENT_BOOST_TIME=60, EVENT_CASH=0.15;
 var SAVE_KEY='mehanata_save';
-var SAVE_VERSION=2;
-var GAME_VERSION='Алфа 0.2';
+var SAVE_VERSION=3;
+var GAME_VERSION='Алфа 0.3';
 var CHANGELOG=[
+  ['Алфа 0.3',[
+    'Механата се строи: шест нива от Колиба до Комплекс',
+    'Пет нови поста, до Износ зад граница',
+    'Ъпгрейдите вече стигат до 300 бройки вместо до 100',
+    'Звездите се харчат в „Дядовата изба“, вместо да се трупат',
+    'Престижът дава по-малко звезди, но силата е трайна и се избира',
+    'Заради ребаланса всички стари записи почват начисто с компенсация'
+  ]],
   ['Алфа 0.2',[
     'Покупка на ×10, ×100 и Макс наведнъж',
     'Прагове на звездите: траен ефект на 5, 10, 25, 50 и 100 звезди',
@@ -673,11 +681,17 @@ var STAR_TIERS=[
   {at:50,  name:'Дълъг гуляй',      desc:'Бустът от събитие трае 2 минути.'},
   {at:100, name:'Име в чужбина',    desc:'Офлайн приходът става 100%.'}
 ];
-function tierOn(at){return S.stars>=at;}
-function offlineCap(){return tierOn(5)?12*3600:OFFLINE_CAP;}
-function offlineRatio(){return tierOn(100)?1:OFFLINE_RATIO;}
+// Праговете ключат на ИЗКАРАНИТЕ за цял живот звезди, не на наличните —
+// иначе покупка в магазина би отнела вече отключен праг.
+function tierOn(at){return S.starsTotal>=at;}
+function offlineCap(){
+  return (tierOn(5)?12*3600:OFFLINE_CAP)+shopLevel('safe')*3600;
+}
+function offlineRatio(){
+  return Math.min(1,(tierOn(100)?1:OFFLINE_RATIO)+0.1*shopLevel('abroad'));
+}
 function eventGap(){return tierOn(10)?0.5:1;}
-function tapMult(){return tierOn(25)?2:1;}
+function tapMult(){return (tierOn(25)?2:1)*(1+0.5*shopLevel('tongue'));}
 function boostTime(){return tierOn(50)?120:EVENT_BOOST_TIME;}
 
 var GENS=[
@@ -690,26 +704,100 @@ var GENS=[
   {id:'terasa',  name:'Лятна тераса',       icon:'terasa',  base:20000000,    rate:7800},
   {id:'horo',    name:'Хоро на площада',    icon:'horo',    base:330000000,   rate:44000},
   {id:'avtobus', name:'Автобус с туристи',  icon:'avtobus', base:5100000000,  rate:260000},
-  {id:'mehana',  name:'Верига механи',      icon:'mehana',  base:75000000000, rate:1600000}
+  {id:'mehana',  name:'Верига механи',      icon:'mehana',  base:75000000000, rate:1600000},
+  // ---- отключвани от нивата на сградата, Алфа 0.3 ----
+  // Следват същия закон като първите десет: база ×15, приход ×6 на стъпка.
+  {id:'pivo',    name:'Пивоварна',           icon:'izba',    base:1.125e12,    rate:9.6e6},
+  {id:'vinarna', name:'Винарна с етикет',    icon:'rakia',   base:1.69e13,     rate:5.76e7},
+  {id:'hotel',   name:'Хотел към механата',  icon:'mehana',  base:2.53e14,     rate:3.46e8},
+  {id:'tv',      name:'Кулинарно предаване', icon:'skara',   base:3.8e15,      rate:2.07e9},
+  {id:'iznos',   name:'Износ зад граница',   icon:'avtobus', base:5.7e16,      rate:1.24e10}
 ];
 var GEN_BY_ID={};GENS.forEach(function(g,i){g.idx=i;GEN_BY_ID[g.id]=g;});
 
+// По седем на пост. Първите четири са от 0.1 и се отключват при 10/25/50/100
+// бройки; последните три идват с нивата на сградата, при 150/200/300.
 var UPG_NAMES={
-  rakia:  ['Двоен казан','Дядовата рецепта','Медал от изложението','Ракия за износ'],
-  salata: ['Повече сирене','Домати от градината','Чубрица от Родопите','Салата за цяла маса'],
-  meze:   ['Луканка от избата','Пълнени чушлета','Дъска за мезета','Кралско мезе'],
-  skara:  ['Дървени въглища','Тайната подправка','Скара до тавана','Кебапче XXL'],
-  gaida:  ['Нова гайда от кожа','Каба гайда','Гайдарски събор','Оркестър „Родопа“'],
-  izba:   ['Дъбови бъчви','Реколта от Мелник','Изба на две нива','Медал от винения конкурс'],
-  terasa: ['Лозница над масите','Чадъри за дъжд','Гледка към Балкана','Тераса към морето'],
-  horo:   ['По-голям тъпан','Гости от три села','Право хоро без край','Хоро с 500 души'],
-  avtobus:['Втори автобус','Екскурзовод с мегафон','Туристи от Германия','Цял конвой автобуси'],
-  mehana: ['Втора механа в града','Франчайз договор','Механа на всяка спирка','Механи в чужбина']
+  rakia:  ['Двоен казан','Дядовата рецепта','Медал от изложението','Ракия за износ',
+           'Отлежала в дъбова бъчва','Гроздова от Сунгурларе','Марка със свой етикет'],
+  salata: ['Повече сирене','Домати от градината','Чубрица от Родопите','Салата за цяла маса',
+           'Собствена градина','Биволско сирене','Салата на корица на списание'],
+  meze:   ['Луканка от избата','Пълнени чушлета','Дъска за мезета','Кралско мезе',
+           'Сушени в комина','Рецепта от прабабата','Мезе за посланици'],
+  skara:  ['Дървени въглища','Тайната подправка','Скара до тавана','Кебапче XXL',
+           'Месо от собствена ферма','Майстор скарджия','Шампион на скарата'],
+  gaida:  ['Нова гайда от кожа','Каба гайда','Гайдарски събор','Оркестър „Родопа“',
+           'Сто гайди наведнъж','Запис в радиото','Турне из Европа'],
+  izba:   ['Дъбови бъчви','Реколта от Мелник','Изба на две нива','Медал от винения конкурс',
+           'Изба на три нива','Собствено лозе','Географско означение'],
+  terasa: ['Лозница над масите','Чадъри за дъжд','Гледка към Балкана','Тераса към морето',
+           'Отопление за зимата','Панорамен асансьор','Тераса на покрива'],
+  horo:   ['По-голям тъпан','Гости от три села','Право хоро без край','Хоро с 500 души',
+           'Хоро около площада','Рекорд на Гинес','Хоро по телевизията'],
+  avtobus:['Втори автобус','Екскурзовод с мегафон','Туристи от Германия','Цял конвой автобуси',
+           'Собствена турагенция','Чартърен полет','Круизен кораб'],
+  mehana: ['Втора механа в града','Франчайз договор','Механа на всяка спирка','Механи в чужбина',
+           'Механа на летището','Излизане на борсата','Механа на всеки континент'],
+  pivo:   ['Меден казан','Собствен хмел','Тъмно и светло','Бира с медал',
+           'Пивоварна на две смени','Собствено бутилиране','Бира за Октоберфест'],
+  vinarna:['Свой етикет','Барик бъчви','Розе за лятото','Награда от Виена',
+           'Винен туризъм','Резерва десет години','Аукцион в Лондон'],
+  hotel:  ['Десет стаи','Закуска включена','Спа с минерална вода','Четири звезди',
+           'Конферентна зала','Пет звезди','Верига хотели'],
+  tv:     ['Кабеларка в града','Свой оператор','Национален ефир','Праймтайм',
+           'Собствено студио','Формат за продан','Излъчване в чужбина'],
+  iznos:  ['Първи контейнер','Митнически агент','Склад в Хамбург','Рафт в супермаркета',
+           'Собствен кораб','Марка в двайсет държави','Световна дистрибуция']
 };
+
+// ---- Сградата ----
+// Всяко ниво струва пари, отключва нов пост и вдига тавана на ъпгрейдите.
+// Цената е около трикратно базовата цена на поста, който отключва — така
+// нивото идва точно когато този пост започва да има смисъл.
+var BUILDINGS=[
+  {name:'Колиба',        cost:0,      posts:10, upg:4,
+   desc:'Четири стени и един казан. Оттук започва всичко.'},
+  {name:'Кръчма',        cost:3e12,   posts:11, upg:5,
+   desc:'Истински бар и мазе за бирата.'},
+  {name:'Механа',        cost:5e13,   posts:12, upg:5,
+   desc:'Дървени маси, огнище и име на улицата.'},
+  {name:'Голяма механа', cost:7.5e14, posts:13, upg:6,
+   desc:'Два етажа, сватбена зала и стаи за гости.'},
+  {name:'Хан',           cost:1.1e16, posts:14, upg:6,
+   desc:'Хан на пътя. Тук се спира, яде и спи.'},
+  {name:'Комплекс',      cost:1.7e17, posts:15, upg:7,
+   desc:'Механа, хотел, изба и снимачно студио под един покрив.'}
+];
+function building(){return BUILDINGS[Math.min(S.building||0,BUILDINGS.length-1)];}
+function postsUnlocked(){return building().posts;}
+function upgTiers(){return building().upg;}
+function nextBuilding(){return S.building+1<BUILDINGS.length?BUILDINGS[S.building+1]:null;}
+
+// ---- Магазин за звезди: „Дядовата изба“ ----
+// Звездите вече се харчат тук. Цената расте като base × 1.6^ниво, тоест
+// линейният приход от звезди се превръща в логаритмична сила — това е
+// спирачката, която липсваше в 0.2.
+var STAR_SHOP=[
+  {id:'recipe', name:'Дядовата рецепта', base:1,  max:60,
+   desc:'+25% към целия приход.'},
+  {id:'supply', name:'Изгодни доставки', base:25, max:5,
+   desc:'Постовете поскъпват по-бавно: 1.15 → 1.14.'},
+  {id:'tongue', name:'Бърз език',        base:3,  max:10,
+   desc:'+50% към тапването.'},
+  {id:'ledger', name:'Стар тефтер',      base:5,  max:10,
+   desc:'Новият живот започва с по 5 безплатни бройки от първите три поста.'},
+  {id:'safe',   name:'Здрава каса',      base:4,  max:12,
+   desc:'+1 час към офлайн тавана.'},
+  {id:'abroad', name:'Име в чужбина',    base:20, max:5,
+   desc:'+10% към офлайн прихода.'}
+];
+var SHOP_BY_ID={};STAR_SHOP.forEach(function(s){SHOP_BY_ID[s.id]=s;});
+function shopLevel(id){return S.starShop[id]||0;}
+function shopCost(item,lv){return Math.ceil(item.base*Math.pow(1.6,lv===undefined?shopLevel(item.id):lv));}
 
 var UPGRADES=[];
 GENS.forEach(function(g){
-  for(var i=0;i<4;i++){
+  for(var i=0;i<UPG_STEPS.length;i++){
     UPGRADES.push({
       id:g.id+'_'+i, gen:g.id, idx:i,
       name:UPG_NAMES[g.id][i],
@@ -741,17 +829,29 @@ var ACHV=[
   {id:'a17',name:'Купувач на едро',   desc:'50 покупки на едро.',                    t:function(){return S.bulkBuys>=50;}},
   {id:'a18',name:'Точен удар',        desc:'Първи критичен тап.',                    t:function(){return S.crits>=1;}},
   {id:'a19',name:'Тежка ръка',        desc:'100 критични тапвания.',                 t:function(){return S.crits>=100;}},
-  {id:'a20',name:'Нощна смяна',       desc:'Събери 5 звезди.',                       t:function(){return S.stars>=5;}},
-  {id:'a21',name:'Слух из града',     desc:'Събери 10 звезди.',                      t:function(){return S.stars>=10;}},
-  {id:'a22',name:'Твърда ръка',       desc:'Събери 25 звезди.',                      t:function(){return S.stars>=25;}},
-  {id:'a23',name:'Дълъг гуляй',       desc:'Събери 50 звезди.',                      t:function(){return S.stars>=50;}},
-  {id:'a24',name:'Име в чужбина',     desc:'Събери 100 звезди.',                     t:function(){return S.stars>=100;}},
+  // Ключат на изкараните за цял живот звезди, не на наличните — иначе
+  // харченето в магазина би отнело вече отключени постижения.
+  {id:'a20',name:'Нощна смяна',       desc:'Изкарай общо 5 звезди.',                 t:function(){return S.starsTotal>=5;}},
+  {id:'a21',name:'Слух из града',     desc:'Изкарай общо 10 звезди.',                t:function(){return S.starsTotal>=10;}},
+  {id:'a22',name:'Твърда ръка',       desc:'Изкарай общо 25 звезди.',                t:function(){return S.starsTotal>=25;}},
+  {id:'a23',name:'Дълъг гуляй',       desc:'Изкарай общо 50 звезди.',                t:function(){return S.starsTotal>=50;}},
+  {id:'a24',name:'Име в чужбина',     desc:'Изкарай общо 100 звезди.',               t:function(){return S.starsTotal>=100;}},
   {id:'a25',name:'Стар кръчмар',      desc:'Изиграй общо 3 часа.',                   t:function(){return S.playtime>=10800;}},
   {id:'a26',name:'Легенда на квартала',desc:'Изиграй общо 24 часа.',                 t:function(){return S.playtime>=86400;}},
   {id:'a27',name:'Пълна изба',        desc:'100 бройки Изба с вино.',                t:function(){return S.gens.izba>=100;}},
   {id:'a28',name:'Всичко на макс',    desc:'Купи всичките 40 ъпгрейда.',             t:function(){return Object.keys(S.upgrades).length>=UPGRADES.length;}},
   {id:'a29',name:'Пътнически поток',  desc:'10 уловени звезди.',                     t:function(){return S.eventsCaught>=10;}},
-  {id:'a30',name:'Империя',           desc:'Продай механата 10 пъти.',               t:function(){return S.prestiges>=10;}}
+  {id:'a30',name:'Империя',           desc:'Продай механата 10 пъти.',               t:function(){return S.prestiges>=10;}},
+  // ---- добавени в Алфа 0.3 ----
+  {id:'a31',name:'Първи трудодни',    desc:'Построй Кръчма.',                        t:function(){return S.building>=1;}},
+  {id:'a32',name:'Име на улицата',    desc:'Построй Механа.',                        t:function(){return S.building>=2;}},
+  {id:'a33',name:'Хан на пътя',       desc:'Построй Хан.',                           t:function(){return S.building>=4;}},
+  {id:'a34',name:'Под един покрив',   desc:'Построй Комплекс.',                      t:function(){return S.building>=5;}},
+  {id:'a35',name:'В избата на дядо',  desc:'Купи първото си умение със звезди.',     t:function(){return S.starsSpent>=1;}},
+  {id:'a36',name:'Стар клиент',       desc:'Похарчи 500 звезди в избата.',           t:function(){return S.starsSpent>=500;}},
+  {id:'a37',name:'Пивовар',           desc:'Купи първата си Пивоварна.',             t:function(){return (S.gens.pivo||0)>=1;}},
+  {id:'a38',name:'Зад граница',       desc:'Купи първия си Износ зад граница.',      t:function(){return (S.gens.iznos||0)>=1;}},
+  {id:'a39',name:'Ветеран от Алфа',   desc:'Игра още преди големия ребаланс.',       t:function(){return !!S.veteran;}}
 ];
 
 /* =======================================================================
@@ -774,22 +874,49 @@ function defaults(){
     crits:0,              // брой критични тапвания
     freeGifts:0,          // безплатни бройки от събитието с автобуса
     bulkBuys:0,           // покупки на едро (за постижение)
+    // ---- добавени в SAVE_VERSION 3 ----
+    starsTotal:0,         // изкарани звезди за всички животи — праговете ключат на това
+    starsSpent:0,         // похарчени в „Дядовата изба“
+    starShop:{},          // id на умение -> ниво
+    building:0,           // индекс в BUILDINGS
+    veteran:false,        // игра преди ребаланса на 0.3
     savedAt:Date.now()
   };
 }
 var S=defaults();
 
 /* --- запис / четене --- */
+var rebalanceGift=null;      // ако е число, при старт се показва модалът за ребаланса
 function migrate(raw){
   var d=defaults();
   if(!raw||typeof raw!=='object')return d;
+  // ---- Ребалансът на Алфа 0.3 ----
+  // Старата формула трупаше звезди без таван (1.7 млн. броя = ×34 000). Тя не
+  // може да се преизчисли на място, защото цялата икономика виси на нея.
+  // Затова записи отпреди версия 3 почват начисто, но получават звезди,
+  // изчислени по НОВАТА формула от изкараното за всички животи. Прогресът си
+  // остава признат, силата слиза до разумното.
+  if(typeof raw.version!=='number'||raw.version<3){
+    var lifetime=(typeof raw.earnedTotal==='number'&&isFinite(raw.earnedTotal))?raw.earnedTotal:0;
+    d.starsTotal=d.stars=Math.floor(Math.cbrt(lifetime/PRESTIGE_MIN));
+    d.bestStars=d.starsTotal;
+    d.prestiges=(typeof raw.prestiges==='number'&&isFinite(raw.prestiges))?raw.prestiges:0;
+    d.earnedTotal=lifetime;                       // историята се пази за статистиката
+    d.playtime=(typeof raw.playtime==='number'&&isFinite(raw.playtime))?raw.playtime:0;
+    d.taps=(typeof raw.taps==='number'&&isFinite(raw.taps))?raw.taps:0;
+    d.veteran=true;
+    if(typeof raw.muted==='boolean')d.muted=raw.muted;
+    d.version=SAVE_VERSION;
+    d.savedAt=Date.now();
+    rebalanceGift=d.starsTotal;                   // за модала при старт
+    return d;
+  }
+
   // Стратегията е „започни от текущите defaults и вземи каквото разпознаваш“.
-  // Затова запис от версия 1 се зарежда без специален клон: новите полета
-  // (buyMode, crits, freeGifts, bulkBuys) просто остават на стойностите по подразбиране.
   var out=d;
   ['money','stars','prestiges','earnedRun','earnedTotal','taps','playtime',
    'peakMoney','bestRate','bestStars','eventsCaught','boostUntil','savedAt',
-   'crits','freeGifts','bulkBuys'].forEach(function(k){
+   'crits','freeGifts','bulkBuys','starsTotal','starsSpent'].forEach(function(k){
     if(typeof raw[k]==='number'&&isFinite(raw[k]))out[k]=raw[k];
   });
   if([1,10,100,0].indexOf(raw.buyMode)>=0)out.buyMode=raw.buyMode;
@@ -800,7 +927,14 @@ function migrate(raw){
     out.seen[g.id]=(i<2)||raw.seen[g.id]===true;});
   if(raw.upgrades)UPGRADES.forEach(function(u){if(raw.upgrades[u.id])out.upgrades[u.id]=true;});
   if(raw.achv)ACHV.forEach(function(a){if(raw.achv[a.id])out.achv[a.id]=true;});
-  if(out.stars>out.bestStars)out.bestStars=out.stars;
+  if(raw.starShop)STAR_SHOP.forEach(function(it){
+    var v=raw.starShop[it.id];
+    if(typeof v==='number'&&isFinite(v)&&v>0)out.starShop[it.id]=Math.min(Math.floor(v),it.max);});
+  if(typeof raw.building==='number'&&isFinite(raw.building))
+    out.building=Math.max(0,Math.min(Math.floor(raw.building),BUILDINGS.length-1));
+  if(typeof raw.veteran==='boolean')out.veteran=raw.veteran;
+  if(out.starsTotal<out.stars)out.starsTotal=out.stars;
+  if(out.starsTotal>out.bestStars)out.bestStars=out.starsTotal;
   out.version=SAVE_VERSION;
   return out;
 }
@@ -887,9 +1021,14 @@ function upgCount(genId){
 }
 function achvCount(){var n=0;for(var k in S.achv)if(S.achv[k])n++;return n;}
 function boostActive(){return S.boostUntil>Date.now();}
+// Силата от звезди вече идва от купеното в „Дядовата изба“, а не от броя им.
+// Заради 1.6^ниво цената расте по-бързо от ефекта, тоест множителят е
+// логаритмичен спрямо изкараните звезди — точно това липсваше в 0.2.
+function shopMult(){return Math.pow(1.25,shopLevel('recipe'));}
 function globalMult(){
-  return (1+STAR_BONUS*S.stars)*(1+ACHV_BONUS*achvCount())*(boostActive()?EVENT_BOOST:1);
+  return shopMult()*(1+ACHV_BONUS*achvCount())*(boostActive()?EVENT_BOOST:1);
 }
+function costGrowth(){return COST_GROWTH-0.002*shopLevel('supply');}
 function genRate(g){                       // приход/сек от целия пост, с всички бонуси
   return S.gens[g.id]*g.rate*Math.pow(2,upgCount(g.id))*globalMult();
 }
@@ -897,7 +1036,7 @@ function totalRate(){
   var t=0;for(var i=0;i<GENS.length;i++)t+=genRate(GENS[i]);return t;
 }
 function genCost(g,n){                     // цена на следващия екземпляр
-  return g.base*Math.pow(COST_GROWTH,(n===undefined?S.gens[g.id]:n));
+  return g.base*Math.pow(costGrowth(),(n===undefined?S.gens[g.id]:n));
 }
 /* Цена на n поредни бройки, като първата е при k вече притежавани.
    Това е геометричен ред: база·r^k·(1 + r + … + r^(n−1)) = база·r^k·(r^n − 1)/(r − 1).
@@ -905,14 +1044,14 @@ function genCost(g,n){                     // цена на следващия �
 function bulkCost(g,n,k){
   if(k===undefined)k=S.gens[g.id];
   if(n<=0)return 0;
-  var r=COST_GROWTH;
+  var r=costGrowth();
   return g.base*Math.pow(r,k)*(Math.pow(r,n)-1)/(r-1);
 }
 /* Най-многото бройки, които парите стигат за. Обръщане на реда по n:
    n = log_r( 1 + пари·(r−1) / (база·r^k) ). Закръгля се надолу и се проверява,
    защото плаваща запетая на ръба дава ту 9, ту 10. */
 function maxAffordable(g){
-  var r=COST_GROWTH,k=S.gens[g.id];
+  var r=costGrowth(),k=S.gens[g.id];
   var first=g.base*Math.pow(r,k);
   if(S.money<first)return 0;
   var n=Math.floor(Math.log(1+S.money*(r-1)/first)/Math.log(r));
@@ -927,8 +1066,10 @@ function buyQty(g){
   return S.buyMode;
 }
 function tapValue(){return Math.max(1,0.02*totalRate())*tapMult();}
+// Корен ТРЕТИ, не квадратен. В 0.2 sqrt даваше 596 657 звезди за един живот
+// и множител x44 025; cbrt дава 708 за същото изкарано.
 function starsFromPrestige(){
-  return Math.floor(Math.sqrt(S.earnedRun/PRESTIGE_MIN));
+  return Math.floor(Math.cbrt(S.earnedRun/PRESTIGE_MIN));
 }
 function earn(n){
   S.money+=n;S.earnedRun+=n;S.earnedTotal+=n;
@@ -1120,6 +1261,18 @@ function buildStarPane(){
       '<button class="btn" id="btnPrestige">Продай механата</button>'+
       '<p id="pNeed" style="margin-top:8px"></p>'+
     '</div>'+
+    '<div class="sechead">Сградата</div>'+
+    '<div class="panel">'+
+      '<h2 id="bName">Колиба</h2>'+
+      '<p id="bDesc"></p>'+
+      '<p id="bGives"></p>'+
+      '<button class="btn" id="btnBuild">Строй</button>'+
+      '<p id="bNeed" style="margin-top:8px"></p>'+
+    '</div>'+
+    '<div class="sechead">Дядовата изба</div>'+
+    '<div class="panel" style="padding:10px">'+
+      '<p style="margin-bottom:8px">Трайни умения, купени със звезди. Остават през всички животи.</p>'+
+      '<div id="shopList"></div></div>'+
     '<div class="sechead">Прагове на звездите</div>'+
     '<div class="panel" style="padding:10px">'+
       '<p style="margin-bottom:8px">Отключват се сами и не харчат звезди.</p>'+
@@ -1127,6 +1280,21 @@ function buildStarPane(){
     '<div class="sechead">Постижения (<span id="aCount">0</span>/'+ACHV.length+')</div>'+
     '<div class="panel" style="padding:10px"><p style="margin-bottom:8px">Всяко постижение дава +1% към целия приход завинаги.</p>'+
     '<div id="achvList"></div></div>';
+  var shop=$('shopList');
+  STAR_SHOP.forEach(function(it){
+    var b=document.createElement('button');
+    b.className='row';b.dataset.shop=it.id;
+    b.innerHTML=
+      '<img class="ic" alt="">'+
+      '<div class="rmid"><div class="rname"></div><div class="rsub"></div><div class="rprice"></div></div>'+
+      '<div class="rright"><div class="rcount">0</div><div class="rtag">ниво</div></div>';
+    b.querySelector('.ic').src=assetFor('zvezda');
+    b.querySelector('.rname').textContent=it.name;
+    b.querySelector('.rsub').textContent=it.desc;
+    b.addEventListener('click',function(){buyShop(it);});
+    shop.appendChild(b);
+  });
+  $('btnBuild').addEventListener('click',askBuild);
   var tiers=$('tierList');
   STAR_TIERS.forEach(function(t){
     var d=document.createElement('div');
@@ -1271,7 +1439,7 @@ function renderHeader(){
   if(m!==lastMoneyTxt){elMoney.textContent=m;lastMoneyTxt=m;}
   var r=fmt(totalRate())+' лв./сек';
   if(r!==lastRateTxt){elRate.textContent=r;lastRateTxt=r;}
-  var st=String(S.stars);
+  var st=fmt(S.stars);                     // показваме свободните за харчене
   if(st!==lastStarTxt){elStarNum.textContent=st;lastStarTxt=st;}
   if(boostActive()){
     elBoost.classList.add('on');
@@ -1285,6 +1453,8 @@ function renderHeader(){
 function renderGens(){
   var newlyVisible=false;
   GENS.forEach(function(g,i){
+    // Постовете отвъд нивото на сградата изобщо не съществуват още.
+    if(i>=postsUnlocked()){genRows[g.id].el.style.display='none';return;}
     // видимост: първите два винаги; следващият — при 50% от базовата цена
     if(!S.seen[g.id]){
       var prevSeen=(i===0)||S.seen[GENS[i-1].id];
@@ -1328,6 +1498,8 @@ function renderUpgs(){
   var avail=0,shown=0;
   UPGRADES.forEach(function(u){
     var g=GEN_BY_ID[u.gen],r=upgRows[u.id];
+    // Нивата над отключените от сградата не се показват изобщо.
+    if(u.idx>=upgTiers()||g.idx>=postsUnlocked()){r.el.style.display='none';return;}
     var owned=S.gens[u.gen],bought=!!S.upgrades[u.id],unlocked=owned>=u.req;
     var visible=S.seen[u.gen]&&(unlocked||bought||owned>=Math.max(1,u.req/2));
     if(!visible){r.el.style.display='none';return;}
@@ -1354,15 +1526,48 @@ function renderUpgs(){
 
 function renderStarPane(){
   var gain=starsFromPrestige();
-  $('pStars').textContent=S.stars;
-  $('pBonus').textContent='Бонус в момента: +'+(S.stars*STAR_BONUS*100).toFixed(0)+'% към целия приход.';
-  $('pInfo').textContent='Продажби до момента: '+S.prestiges+'. Изкарано в този живот: '+lv(S.earnedRun);
+  $('pStars').textContent=fmt(S.stars);
+  $('pBonus').textContent='Свободни звезди за харчене. Умения дават ×'+
+    shopMult().toFixed(2)+' към прихода.';
+  $('pInfo').textContent='Продажби: '+S.prestiges+'. Изкарани звезди общо: '+
+    fmt(S.starsTotal)+'. Изкарано в този живот: '+lv(S.earnedRun);
   var btn=$('btnPrestige');
   var ok=S.earnedRun>=PRESTIGE_MIN&&gain>0;
   btn.disabled=!ok;
   btn.textContent=ok?('Продай механата за '+gain+' '+plural(gain,'звезда','звезди','звезди')):'Продай механата';
-  $('pNeed').textContent=ok?'Нулират се пари, постове и ъпгрейди. Звездите остават.'
+  $('pNeed').textContent=ok?'Нулират се пари, постове и ъпгрейди. Сградата и уменията остават.'
     :'Нужни са поне '+lv(PRESTIGE_MIN)+' изкарани в този живот.';
+
+  /* --- сградата --- */
+  var b=building(),nb=nextBuilding();
+  $('bName').textContent=b.name+(nb?'':' — последно ниво');
+  $('bDesc').textContent=b.desc;
+  $('bGives').textContent='Дава '+b.posts+' поста и ъпгрейди до '+UPG_STEPS[b.upg-1]+' бройки.';
+  var bb=$('btnBuild');
+  if(!nb){
+    bb.style.display='none';
+    $('bNeed').textContent='Няма накъде повече. Механата е комплекс.';
+  }else{
+    bb.style.display='';
+    bb.disabled=S.money<nb.cost;
+    bb.textContent='Строй '+nb.name+' — '+lv(nb.cost);
+    $('bNeed').textContent=S.money>=nb.cost
+      ? nb.desc
+      : 'Трябват още '+lv(nb.cost-S.money)+'.';
+  }
+
+  /* --- Дядовата изба --- */
+  STAR_SHOP.forEach(function(it){
+    var el=$('shopList').querySelector('[data-shop="'+it.id+'"]');
+    if(!el)return;
+    var lvl=shopLevel(it.id),maxed=lvl>=it.max;
+    var c=shopCost(it,lvl);
+    el.querySelector('.rcount').textContent=lvl+(it.max<50?('/'+it.max):'');
+    el.querySelector('.rprice').textContent=maxed?'Максимум':(fmt(c)+' '+plural(c,'звезда','звезди','звезди'));
+    el.classList.toggle('done',maxed);
+    el.classList.toggle('poor',!maxed&&S.stars<c);
+  });
+
   var n=achvCount();
   $('aCount').textContent=n;
   ACHV.forEach(function(a){
@@ -1465,6 +1670,7 @@ function buyGen(g){
 }
 function buyUpg(u){
   if(S.upgrades[u.id]){return;}
+  if(u.idx>=upgTiers()){SFX.err();return;}     // ниво, което сградата още не дава
   if(S.gens[u.gen]<u.req){SFX.err();return;}
   if(S.money<u.cost){SFX.err();vibe(6);return;}
   S.money-=u.cost;S.upgrades[u.id]=true;
@@ -1494,15 +1700,54 @@ function doTap(){
 elTapBtn.addEventListener('pointerdown',function(e){e.preventDefault();doTap();});
 elTapBtn.addEventListener('contextmenu',function(e){e.preventDefault();});
 
+function buyShop(it){
+  var lv=shopLevel(it.id);
+  if(lv>=it.max){SFX.err();return;}
+  var c=shopCost(it,lv);
+  if(S.stars<c){SFX.err();vibe(6);return;}
+  S.stars-=c;S.starsSpent+=c;
+  S.starShop[it.id]=lv+1;
+  SFX.unlock();vibe(18);
+  toast(it.name+' → ниво '+(lv+1),it.desc,3200);
+  checkAchv();renderAll();renderStarPane();save();
+}
+
+function askBuild(){
+  var nb=nextBuilding();
+  if(!nb){SFX.err();return;}
+  if(S.money<nb.cost){SFX.err();vibe(6);return;}
+  var newPosts=nb.posts-building().posts, newUpg=nb.upg-building().upg;
+  modal({
+    title:'Строй '+nb.name,
+    html:nb.desc+'<br><br>Струва <em>'+lv(nb.cost)+'</em>.<br><br>'+
+      (newPosts>0?'Отключва <em>'+GENS[building().posts].name+'</em>.<br>':'')+
+      (newUpg>0?'Ъпгрейдите стигат до <em>'+UPG_STEPS[nb.upg-1]+' бройки</em>.<br>':'')+
+      '<br>Сградата остава при престиж.',
+    buttons:[
+      {label:'Строй',fn:function(){doBuild(nb);}},
+      {label:'Още не',cls:'ghost'}
+    ]
+  });
+}
+function doBuild(nb){
+  if(S.money<nb.cost)return;
+  S.money-=nb.cost;S.building++;
+  SFX.prestige();vibe([20,40,20]);
+  applyAssets();
+  checkAchv();rebuildAll();save();
+  toast('Построена: '+nb.name,nb.desc,4200);
+}
+
 function askPrestige(){
   var gain=starsFromPrestige();
   if(S.earnedRun<PRESTIGE_MIN||gain<1){SFX.err();return;}
   modal({
     title:'Продай механата',
     html:'Ще получиш <em>'+gain+' '+plural(gain,'звезда','звезди','звезди')+'</em>.<br><br>'+
-         'Общо звезди след това: <em>'+(S.stars+gain)+'</em> — това е <em>+'+
-         ((S.stars+gain)*STAR_BONUS*100).toFixed(0)+'%</em> към целия приход, завинаги.<br><br>'+
-         'Губиш парите, всички постове и всички ъпгрейди. Постиженията и звездите остават.',
+         'Звездите се харчат в <em>Дядовата изба</em> за трайни умения, които '+
+         'остават през всички животи.<br><br>'+
+         'Губиш парите, постовете и ъпгрейдите. Сградата, уменията и '+
+         'постиженията остават.',
     buttons:[
       {label:'Продай я',fn:function(){doPrestige(gain);}},
       {label:'Още не',cls:'ghost'}
@@ -1510,11 +1755,14 @@ function askPrestige(){
   });
 }
 function doPrestige(gain){
-  S.stars+=gain;S.prestiges++;
-  if(S.stars>S.bestStars)S.bestStars=S.stars;
+  S.stars+=gain;S.starsTotal+=gain;S.prestiges++;
+  if(S.starsTotal>S.bestStars)S.bestStars=S.starsTotal;
   S.money=0;S.earnedRun=0;S.boostUntil=0;
   GENS.forEach(function(g,i){S.gens[g.id]=0;S.seen[g.id]=(i<2);});
   S.upgrades={};
+  // „Стар тефтер“: новият живот не почва съвсем от нула
+  var free=shopLevel('ledger')*5;
+  if(free>0)for(var i=0;i<3;i++){S.gens[GENS[i].id]=free;S.seen[GENS[i].id]=true;}
   SFX.prestige();vibe([20,40,20]);
   checkAchv();save();
   lastMoneyTxt=lastRateTxt=lastStarTxt='';
@@ -1674,6 +1922,23 @@ document.addEventListener('visibilitychange',function(){
 window.addEventListener('pagehide',onHide);
 window.addEventListener('blur',function(){save();});
 
+// Показва се веднъж, при първо зареждане след ребаланса на 0.3.
+function showRebalance(){
+  var g=rebalanceGift; rebalanceGift=null;
+  modal({
+    title:'Механата е преустроена',
+    html:'В предишната версия звездите растяха без таван и играта свършваше '+
+      'за няколко часа. Затова формулата е сменена, а звездите вече се '+
+      '<em>харчат</em> в Дядовата изба.<br><br>'+
+      'Старият прогрес не може да се пренесе както е — щеше да е '+
+      '<em>×34 000</em> в икономика, мерена в единици. Затова започваш начисто, '+
+      'но получаваш <em>'+g+' '+plural(g,'звезда','звезди','звезди')+'</em>, '+
+      'изчислени от всичко, което си изкарал досега.<br><br>'+
+      'Плюс значка <em>Ветеран от Алфа</em>. Наздраве.',
+    buttons:[{label:'Да строим наново'}]
+  });
+}
+
 /* =======================================================================
    15. SERVICE WORKER
    ===================================================================== */
@@ -1729,6 +1994,7 @@ function boot(){
   scheduleEvent();
   requestAnimationFrame(loop);
   if(storageOK===false)setTimeout(warnNoStorage,600);
+  else if(rebalanceGift!==null)setTimeout(showRebalance,500);
   askPersist();
   registerSW();
 
