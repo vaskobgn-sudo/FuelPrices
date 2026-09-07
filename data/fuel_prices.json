@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-06T08:42:38Z",
+  "generated_at": "2026-09-07T09:26:14Z",
   "base_currency": "EUR",
   "fx": {
     "date": "2026-09-04",
@@ -165,9 +165,9 @@
       "code": "BZ",
       "min_wage_eur_month": 419.46,
       "petrol_eur_l": 1.653,
-      "diesel_eur_l": 1.574,
+      "diesel_eur_l": 1.689,
       "petrol_litres": 253.8,
-      "diesel_litres": 266.5,
+      "diesel_litres": 248.3,
       "wage_basis": "annual",
       "wage_effective": "22 July 2022",
       "fuel_price_date": "31-Aug-2026"
