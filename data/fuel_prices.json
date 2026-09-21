@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-20T09:19:55Z",
+  "generated_at": "2026-09-21T10:01:01Z",
   "base_currency": "EUR",
   "fx": {
     "date": "2026-09-18",
@@ -284,10 +284,10 @@
       "country": "Canada",
       "code": "CA",
       "min_wage_eur_month": 1754.51,
-      "petrol_eur_l": 1.294,
-      "diesel_eur_l": 1.572,
-      "petrol_litres": 1355.9,
-      "diesel_litres": 1116.1,
+      "petrol_eur_l": 1.298,
+      "diesel_eur_l": 1.689,
+      "petrol_litres": 1351.7,
+      "diesel_litres": 1038.8,
       "wage_basis": "annual",
       "wage_effective": "1 June 2022",
       "fuel_price_date": "14-Sep-2026"
