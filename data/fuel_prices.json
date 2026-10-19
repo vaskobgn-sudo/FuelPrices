@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-18T08:54:22Z",
+  "generated_at": "2026-10-19T10:00:29Z",
   "base_currency": "EUR",
   "fx": {
     "date": "2026-10-16",
@@ -896,10 +896,10 @@
       "country": "Mauritius",
       "code": "MU",
       "min_wage_eur_month": 187.95,
-      "petrol_eur_l": 1.32,
-      "diesel_eur_l": 1.331,
-      "petrol_litres": 142.4,
-      "diesel_litres": 141.2,
+      "petrol_eur_l": 1.451,
+      "diesel_eur_l": 1.464,
+      "petrol_litres": 129.5,
+      "diesel_litres": 128.4,
       "wage_basis": "annual",
       "wage_effective": "2019",
       "fuel_price_date": "12-Oct-2026"
@@ -1340,10 +1340,10 @@
       "country": "Sudan",
       "code": "SD",
       "min_wage_eur_month": 0.96,
-      "petrol_eur_l": 0.622,
-      "diesel_eur_l": 0.583,
-      "petrol_litres": 1.5,
-      "diesel_litres": 1.6,
+      "petrol_eur_l": 1.013,
+      "diesel_eur_l": 1.139,
+      "petrol_litres": 0.9,
+      "diesel_litres": 0.8,
       "wage_basis": "annual",
       "wage_effective": "2013",
       "fuel_price_date": "12-Oct-2026"
