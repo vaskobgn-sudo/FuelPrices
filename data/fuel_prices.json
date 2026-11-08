@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-07T11:09:14Z",
+  "generated_at": "2026-11-08T11:21:31Z",
   "base_currency": "EUR",
   "fx": {
     "date": "2026-11-06",
@@ -212,10 +212,10 @@
       "country": "Botswana",
       "code": "BW",
       "min_wage_eur_month": 144.28,
-      "petrol_eur_l": 1.18,
-      "diesel_eur_l": 1.356,
-      "petrol_litres": 122.3,
-      "diesel_litres": 106.4,
+      "petrol_eur_l": 1.28,
+      "diesel_eur_l": 1.54,
+      "petrol_litres": 112.7,
+      "diesel_litres": 93.7,
       "wage_basis": "annual",
       "wage_effective": "2022",
       "fuel_price_date": "02-Nov-2026"
