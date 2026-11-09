@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-08T11:21:31Z",
+  "generated_at": "2026-11-09T12:59:35Z",
   "base_currency": "EUR",
   "fx": {
     "date": "2026-11-06",
@@ -13,7 +13,7 @@
   },
   "stats": {
     "countries": 127,
-    "median_petrol_litres": 227.1
+    "median_petrol_litres": 232.4
   },
   "countries": [
     {
@@ -1135,13 +1135,13 @@
     {
       "country": "Philippines",
       "code": "PH",
-      "min_wage_eur_month": 254.14,
+      "min_wage_eur_month": 297.51,
       "petrol_eur_l": 1.186,
       "diesel_eur_l": 1.331,
-      "petrol_litres": 214.3,
-      "diesel_litres": 190.9,
+      "petrol_litres": 250.9,
+      "diesel_litres": 223.5,
       "wage_basis": "annual",
-      "wage_effective": "18 July 2025",
+      "wage_effective": "25 July 2026",
       "fuel_price_date": "02-Nov-2026"
     },
     {
